@@ -19,34 +19,40 @@ export default function StructureEditor({ assignmentId, initial = [], initialMin
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [referenceResult, setReferenceResult] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
   const fileRef = useRef();
 
   const uploadReference = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
-    const form = new FormData();
-    form.append('file', file);
-    // Send current sections so backend can find them in etalon text
-    const currentSections = sections
-      .filter(s => s.name.trim())
-      .map(s => ({
-        name: s.name.trim(),
-        aliases: s.aliases ? s.aliases.split(',').map(a => a.trim()).filter(Boolean) : [],
-        required: s.required,
-        forbidden: s.forbidden,
-      }));
-    form.append('sections', JSON.stringify(currentSections));
-    const res = await api.post(`/assignments/${assignmentId}/reference`, form);
-    const { minTextLength: newMin, updatedSections, totalChars } = res.data;
-    setMinTextLength(newMin);
-    setSections(updatedSections.map(s =>
-      typeof s === 'object'
-        ? { ...s, aliases: (s.aliases || []).join(', '), minWords: s.minWords || '' }
-        : { name: s, aliases: '', required: true, forbidden: false, minWords: '' }
-    ));
-    setReferenceResult({ totalChars, minTextLength: newMin });
-    setUploading(false);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const currentSections = sections
+        .filter(s => s.name.trim())
+        .map(s => ({
+          name: s.name.trim(),
+          aliases: s.aliases ? s.aliases.split(',').map(a => a.trim()).filter(Boolean) : [],
+          required: s.required,
+          forbidden: s.forbidden,
+        }));
+      form.append('sections', JSON.stringify(currentSections));
+      const res = await api.post(`/assignments/${assignmentId}/reference`, form);
+      const { minTextLength: newMin, updatedSections, totalChars } = res.data;
+      setMinTextLength(newMin);
+      setSections(updatedSections.map(s =>
+        typeof s === 'object'
+          ? { ...s, aliases: (s.aliases || []).join(', '), minWords: s.minWords || '' }
+          : { name: s, aliases: '', required: true, forbidden: false, minWords: '' }
+      ));
+      setReferenceResult({ totalChars, minTextLength: newMin });
+    } catch (err) {
+      setUploadError(err.response?.data?.error || 'Помилка завантаження файлу');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const update = (i, field, value) =>
@@ -90,6 +96,9 @@ export default function StructureEditor({ assignmentId, initial = [], initialMin
               </span>
             )}
           </div>
+          {uploadError && (
+            <p className="text-xs text-destructive">{uploadError}</p>
+          )}
           <p className="text-xs text-muted-foreground">
             Спочатку додайте розділи нижче, потім завантажте еталон — система автоматично порахує мінімальний обсяг для кожного розділу.
           </p>

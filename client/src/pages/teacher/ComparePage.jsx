@@ -57,6 +57,7 @@ export default function ComparePage() {
   const [similarity, setSimilarity] = useState(null);
   const [docSimilarity, setDocSimilarity] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const fileARef = useRef();
   const fileBRef = useRef();
 
@@ -70,11 +71,17 @@ export default function ComparePage() {
   const compare = async () => {
     if (!textA.trim() || !textB.trim()) return;
     setLoading(true);
-    const res = await api.post('/compare', { textA, textB });
-    setMatches(res.data.matches);
-    setSimilarity(res.data.similarity);
-    setDocSimilarity(res.data.docSimilarity);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await api.post('/compare', { textA, textB });
+      setMatches(res.data.matches);
+      setSimilarity(res.data.similarity);
+      setDocSimilarity(res.data.docSimilarity);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Помилка порівняння');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -139,6 +146,12 @@ export default function ComparePage() {
           {loading ? <><Spinner className="h-4 w-4 mr-2" />Порівняння...</> : <><Play className="h-4 w-4 mr-2" />Порівняти</>}
         </Button>
       </div>
+
+      {error && (
+        <div className="mt-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive text-center">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

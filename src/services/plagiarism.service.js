@@ -1,7 +1,9 @@
 const { PlagiarismResult } = require('../models');
 
-const SHINGLE_SIZE = 6;   // words per shingle
-const THRESHOLD = 0.25;   // min Jaccard similarity to flag plagiarism
+const SHINGLE_SIZE = 6;
+const THRESHOLD = 0.25;
+// Approximate lines to skip at the start (title page)
+const TITLE_PAGE_LINES = 20;
 
 function tokenizeWords(text) {
   return text.toLowerCase().replace(/[^\wа-яіїєґ\s]/gi, '').split(/\s+/).filter(Boolean);
@@ -21,27 +23,42 @@ function jaccardSimilarity(setA, setB) {
   return intersection / (setA.size + setB.size - intersection);
 }
 
-// Find matching sentences between two texts
+// Skip title page boilerplate (first N non-empty lines)
+function stripBoilerplate(text) {
+  const lines = text.split('\n');
+  let nonEmpty = 0;
+  let i = 0;
+  for (; i < lines.length; i++) {
+    if (lines[i].trim()) nonEmpty++;
+    if (nonEmpty >= TITLE_PAGE_LINES) break;
+  }
+  return lines.slice(i + 1).join('\n');
+}
+
+function splitSentences(text) {
+  return text
+    .split(/[.!?\n]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 30);
+}
+
 function findMatchingSentences(targetText, sourceText) {
-  const targetSentences = targetText.match(/[^.!?\n]{20,}[.!?\n]*/g) || [];
-  const sourceSentences = sourceText.match(/[^.!?\n]{20,}[.!?\n]*/g) || [];
+  const targetSentences = splitSentences(targetText);
+  const sourceSentences = splitSentences(sourceText);
   const matches = [];
 
   for (const ts of targetSentences) {
     const tsWords = tokenizeWords(ts);
-    if (tsWords.length < 5) continue;
+    if (tsWords.length < 8) continue;
 
     for (const ss of sourceSentences) {
       const ssWords = tokenizeWords(ss);
-      if (ssWords.length < 5) continue;
+      if (ssWords.length < 8) continue;
 
-      const tsShingles = buildShingles(tsWords);
-      const ssShingles = buildShingles(ssWords);
-      const sim = jaccardSimilarity(tsShingles, ssShingles);
-
+      const sim = jaccardSimilarity(buildShingles(tsWords), buildShingles(ssWords));
       if (sim >= 0.6) {
         matches.push({ targetText: ts.trim(), sourceText: ss.trim(), similarity: sim });
-        break; // one match per target sentence is enough
+        break;
       }
     }
   }
@@ -54,18 +71,18 @@ function findMatchingSentences(targetText, sourceText) {
  * Returns array of matches per source submission.
  */
 exports.compare = async (targetSubmission, earlierSubmissions) => {
-  const targetWords = tokenizeWords(targetSubmission.extractedText);
-  const targetShingles = buildShingles(targetWords);
+  const targetText = stripBoilerplate(targetSubmission.extractedText);
+  const targetShingles = buildShingles(tokenizeWords(targetText));
   const results = [];
 
   for (const source of earlierSubmissions) {
-    const sourceWords = tokenizeWords(source.extractedText);
-    const sourceShingles = buildShingles(sourceWords);
+    const sourceText = stripBoilerplate(source.extractedText);
+    const sourceShingles = buildShingles(tokenizeWords(sourceText));
 
     const similarity = jaccardSimilarity(targetShingles, sourceShingles);
     if (similarity < THRESHOLD) continue;
 
-    const matches = findMatchingSentences(targetSubmission.extractedText, source.extractedText);
+    const matches = findMatchingSentences(targetText, sourceText);
 
     await PlagiarismResult.upsert({
       sourceSubmissionId: source.id,

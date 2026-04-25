@@ -6,7 +6,9 @@ const { Submission } = require('../models');
 exports.list = async (req, res, next) => {
   try {
     const { assignmentId } = req.query;
-    const where = assignmentId ? { assignmentId } : {};
+    const where = {};
+    if (assignmentId) where.assignmentId = assignmentId;
+    if (req.user.role === 'student') where.studentId = req.user.id;
     const submissions = await Submission.findAll({ where });
     res.json(submissions);
   } catch (err) { next(err); }

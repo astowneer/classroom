@@ -1,19 +1,32 @@
 const reportService = require('../services/report.service');
 const { Report, Submission, User } = require('../models');
 
+// Teacher sees all, student sees only their own
+async function canAccess(submissionId, user) {
+  if (user.role === 'teacher') return true;
+  const submission = await Submission.findByPk(submissionId);
+  return submission && submission.studentId === user.id;
+}
+
 exports.get = async (req, res, next) => {
   try {
+    if (!await canAccess(req.params.submissionId, req.user)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const report = await Report.findOne({ where: { submissionId: req.params.submissionId } });
     if (!report) return res.status(404).json({ error: 'Not found' });
     res.json(report);
   } catch (err) { next(err); }
 };
 
-// Summary table for all submissions of an assignment
 exports.getByAssignment = async (req, res, next) => {
   try {
+    const where = { assignmentId: req.params.assignmentId };
+    // Student sees only their own submission
+    if (req.user.role === 'student') where.studentId = req.user.id;
+
     const submissions = await Submission.findAll({
-      where: { assignmentId: req.params.assignmentId },
+      where,
       include: [
         { model: User, as: 'student', attributes: ['id', 'name', 'email'] },
         { model: Report, as: 'report', attributes: ['plagiarismScore', 'structurePassed', 'sentToStudent'] },
@@ -37,6 +50,9 @@ exports.getByAssignment = async (req, res, next) => {
 
 exports.download = async (req, res, next) => {
   try {
+    if (!await canAccess(req.params.submissionId, req.user)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const buffer = await reportService.generatePdf(req.params.submissionId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="report-${req.params.submissionId}.pdf"`);

@@ -10,7 +10,7 @@ if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
 // Palette of highlight colors per source student
 const COLORS = ['#FFD700', '#90EE90', '#FFB6C1', '#ADD8E6', '#FFA07A', '#DDA0DD', '#98FB98'];
 
-exports.create = async (submission, structureResult, plagiarismMatches) => {
+exports.create = async (submission, structureResult, plagiarismMatches, grammarResult = null) => {
   const plagiarismScore = plagiarismMatches.length
     ? Math.max(...plagiarismMatches.map(m => m.similarity))
     : 0;
@@ -19,7 +19,7 @@ exports.create = async (submission, structureResult, plagiarismMatches) => {
     submissionId: submission.id,
     plagiarismScore,
     structurePassed: structureResult.passed,
-    details: { structureResult, plagiarismMatches },
+    details: { structureResult, plagiarismMatches, grammarResult },
   });
 
   return report;
@@ -114,6 +114,28 @@ exports.generatePdf = async (submissionId) => {
       });
     }
     doc.moveDown();
+
+    // ── Grammar check ────────────────────────────────────────
+    const grammarResult = details.grammarResult;
+    if (grammarResult) {
+      doc.fontSize(13).text('Перевірка граматики', { underline: true });
+      doc.fontSize(11).text(`Знайдено помилок: ${grammarResult.errorCount}`);
+      if (grammarResult.errors?.length) {
+        doc.moveDown(0.3).fontSize(10);
+        for (const err of grammarResult.errors.slice(0, 20)) {
+          doc.text(`• ${err.message}`, { indent: 10 });
+          doc.text(`  «${err.context.substring(0, 80)}»`, { indent: 20 });
+          if (err.replacements?.length) {
+            doc.text(`  Пропозиція: ${err.replacements.join(', ')}`, { indent: 20 });
+          }
+        }
+        if (grammarResult.errors.length > 20) {
+          doc.text(`  ... та ще ${grammarResult.errors.length - 20} помилок`, { indent: 10 });
+        }
+        doc.fontSize(11);
+      }
+      doc.moveDown();
+    }
 
     // ── Full text with highlights ────────────────────────────
     doc.fontSize(13).text('Текст роботи', { underline: true });

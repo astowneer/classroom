@@ -1,7 +1,8 @@
-const { Submission, Assignment, User } = require('../models');
+const { Submission, Assignment } = require('../models');
 const pdfService = require('./pdf.service');
 const plagiarismService = require('./plagiarism.service');
 const structureService = require('./structure.service');
+const grammarService = require('./grammar.service');
 const reportService = require('./report.service');
 const notificationService = require('./notification.service');
 
@@ -15,7 +16,7 @@ exports.runAll = async (assignmentId, teacher) => {
   const results = [];
 
   for (const submission of submissions) {
-    // 1. Extract text from PDF via Google Drive
+    // 1. Extract text
     if (!submission.extractedText && submission.fileUrl) {
       try {
         const text = await pdfService.extractText(teacher, submission.fileUrl);
@@ -38,14 +39,22 @@ exports.runAll = async (assignmentId, teacher) => {
     );
     await submission.update({ structureResult });
 
-    // 3. Plagiarism — compare against earlier submissions
+    // 3. Plagiarism
     const earlier = submissions.filter(
       s => s.submittedAt < submission.submittedAt && s.extractedText
     );
     const plagiarismMatches = await plagiarismService.compare(submission, earlier);
 
-    // 4. Save report
-    const report = await reportService.create(submission, structureResult, plagiarismMatches);
+    // 4. Grammar check (non-fatal — skip if LanguageTool unavailable)
+    let grammarResult = null;
+    try {
+      grammarResult = await grammarService.check(submission.extractedText);
+    } catch {
+      console.warn(`[Grammar] LanguageTool unavailable for submission ${submission.id}`);
+    }
+
+    // 5. Save report
+    const report = await reportService.create(submission, structureResult, plagiarismMatches, grammarResult);
 
     await submission.update({ status: 'checked' });
     results.push({ submissionId: submission.id, status: 'checked', report });

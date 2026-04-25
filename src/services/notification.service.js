@@ -1,13 +1,9 @@
 const { google } = require('googleapis');
+const { createAuthClient } = require('../utils/googleAuth');
 const { Notification, Submission, Assignment, Course, User, Report } = require('../models');
 
 function getClassroomClient(teacher) {
-  const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
-  auth.setCredentials({ access_token: teacher.accessToken, refresh_token: teacher.refreshToken });
+  const auth = createAuthClient(teacher);
   return google.classroom({ version: 'v1', auth });
 }
 

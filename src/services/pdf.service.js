@@ -1,16 +1,7 @@
 const { google } = require('googleapis');
+const { createAuthClient } = require('../utils/googleAuth');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
-
-function getDriveClient(user) {
-  const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
-  auth.setCredentials({ access_token: user.accessToken, refresh_token: user.refreshToken });
-  return google.drive({ version: 'v3', auth });
-}
 
 function extractFileId(fileUrl) {
   const match = fileUrl.match(/[?&]id=([^&]+)/) || fileUrl.match(/\/d\/([^/]+)/);
@@ -19,7 +10,8 @@ function extractFileId(fileUrl) {
 }
 
 exports.extractText = async (user, fileUrl) => {
-  const drive = getDriveClient(user);
+  const auth = createAuthClient(user);
+  const drive = google.drive({ version: 'v3', auth });
   const fileId = extractFileId(fileUrl);
   const response = await drive.files.get(
     { fileId, alt: 'media' },

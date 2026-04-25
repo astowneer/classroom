@@ -42,6 +42,7 @@ router.use(authenticate);
  *                     type: string
  */
 router.get('/', authorize('teacher'), userController.list);
+router.get('/course/:courseId/students', authorize('teacher'), userController.listByCourse);
 
 /**
  * @swagger

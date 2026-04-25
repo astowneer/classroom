@@ -35,6 +35,9 @@ export default function AssignmentsPage() {
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-bold flex-1">Завдання</h1>
+        <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${courseId}/students`)}>
+          Студенти
+        </Button>
         <Button onClick={sync} disabled={syncing} size="sm" variant="outline">
           <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
           Синхронізувати

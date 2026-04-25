@@ -2,7 +2,7 @@ import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/Button';
 import { Spinner } from './ui/Card';
-import { BookOpen, FileText, Bell, LogOut } from 'lucide-react';
+import { BookOpen, FileText, Bell, LogOut, GitCompare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 
@@ -35,6 +35,7 @@ export function Layout() {
 
   const teacherLinks = [
     { to: '/teacher/courses', label: 'Курси', icon: BookOpen },
+    { to: '/teacher/compare', label: 'Порівняння', icon: GitCompare },
     { to: '/teacher/notifications', label: 'Сповіщення', icon: Bell, badge: unread },
   ];
   const studentLinks = [

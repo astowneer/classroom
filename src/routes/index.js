@@ -8,5 +8,6 @@ router.use('/submissions', require('./submission.routes'));
 router.use('/reports', require('./report.routes'));
 router.use('/notifications', require('./notification.routes'));
 router.use('/messages', require('./message.routes'));
+router.use('/compare', require('./compare.routes'));
 
 module.exports = router;

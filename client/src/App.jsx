@@ -7,6 +7,7 @@ import CoursesPage from './pages/teacher/CoursesPage';
 import AssignmentsPage from './pages/teacher/AssignmentsPage';
 import AssignmentDetailPage from './pages/teacher/AssignmentDetailPage';
 import ReportPage from './pages/teacher/ReportPage';
+import ComparePage from './pages/teacher/ComparePage';
 import StudentSubmissionsPage from './pages/student/SubmissionsPage';
 import StudentSubmissionDetailPage from './pages/student/SubmissionDetailPage';
 import NotificationsPage from './pages/NotificationsPage';
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/teacher/courses/:courseId/assignments" element={<AssignmentsPage />} />
               <Route path="/teacher/assignments/:assignmentId" element={<AssignmentDetailPage />} />
               <Route path="/teacher/reports/:submissionId" element={<ReportPage />} />
+              <Route path="/teacher/compare" element={<ComparePage />} />
               <Route path="/teacher/notifications" element={<NotificationsPage />} />
             </Route>
           </Route>

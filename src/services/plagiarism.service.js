@@ -1,106 +1,188 @@
 const { PlagiarismResult } = require('../models');
 
 const SHINGLE_SIZE = 6;
-const THRESHOLD = 0.25;
-// Approximate lines to skip at the start (title page)
-const TITLE_PAGE_LINES = 20;
+const DOC_THRESHOLD = 0.15;
+const SENT_THRESHOLD = 0.55;
+const MIN_WORDS = 4;
+const MIN_CHARS = 20;
+const MIN_SEQ = 6; // min words in a common sequence for compareTexts
+
+// ── Normalization ─────────────────────────────────────────────────────────────
+
+function normalize(text) {
+  return text
+    .replace(/\u00AD/g, '')       // soft hyphens
+    .replace(/-\n\s*/g, '')       // hyphenated line breaks
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
+const BOILERPLATE_PATTERNS = [
+  /навчальн\w+\s+рок/i,
+  /лабораторн\w+\s+(?:робот|завдан)\w*\s+№?\d+/i,
+  /варіант\s+№?\d+/i,
+];
+
+function removeBoilerplate(text) {
+  return text.split('\n').filter(line => {
+    const t = line.trim();
+    if (!t || t.split(/\s+/).length <= 2) return false;
+    return !BOILERPLATE_PATTERNS.some(p => p.test(t));
+  }).join('\n');
+}
+
+// ── Tokenization ──────────────────────────────────────────────────────────────
 
 function tokenizeWords(text) {
-  return text.toLowerCase().replace(/[^\wа-яіїєґ\s]/gi, '').split(/\s+/).filter(Boolean);
-}
-
-function buildShingles(words) {
-  const shingles = new Set();
-  for (let i = 0; i <= words.length - SHINGLE_SIZE; i++) {
-    shingles.add(words.slice(i, i + SHINGLE_SIZE).join(' '));
-  }
-  return shingles;
-}
-
-function jaccardSimilarity(setA, setB) {
-  if (!setA.size || !setB.size) return 0;
-  const intersection = [...setA].filter(s => setB.has(s)).length;
-  return intersection / (setA.size + setB.size - intersection);
-}
-
-// Skip title page boilerplate (first N non-empty lines)
-function stripBoilerplate(text) {
-  const lines = text.split('\n');
-  let nonEmpty = 0;
-  let i = 0;
-  for (; i < lines.length; i++) {
-    if (lines[i].trim()) nonEmpty++;
-    if (nonEmpty >= TITLE_PAGE_LINES) break;
-  }
-  return lines.slice(i + 1).join('\n');
+  return text.toLowerCase().replace(/[^\wа-яіїєґ\s]/gi, ' ').split(/\s+/).filter(Boolean);
 }
 
 function splitSentences(text) {
   return text
-    .split(/(?<=[.!?])\s+|\n{2,}/)
-    .flatMap(chunk => chunk.split(/[.!?]+/).map(s => s.trim()))
-    .filter(s => s.length > 15); // технічні тексти мають короткі рядки
+    .split(/(?<=[.!?])\s+(?=[А-ЯІЇЄҐA-Z])|(?<=[.!?])\s*\n+/)
+    .flatMap(c => c.split(/\n{2,}/))
+    .map(s => s.trim())
+    .filter(s => s.length >= MIN_CHARS && tokenizeWords(s).length >= MIN_WORDS);
 }
 
-function findMatchingSentences(targetText, sourceText) {
-  const targetSentences = splitSentences(targetText);
-  const sourceSentences = splitSentences(sourceText);
+// ── Shingling ─────────────────────────────────────────────────────────────────
+
+function buildShingles(words) {
+  const s = new Set();
+  for (let i = 0; i <= words.length - SHINGLE_SIZE; i++)
+    s.add(words.slice(i, i + SHINGLE_SIZE).join(' '));
+  return s;
+}
+
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  const inter = [...a].filter(x => b.has(x)).length;
+  return inter / (a.size + b.size - inter);
+}
+
+// ── Sentence-level comparison (for DB plagiarism check) ───────────────────────
+
+function findAllOccurrences(text, sub) {
+  const res = [];
+  let i = text.indexOf(sub);
+  while (i !== -1) { res.push({ start: i, end: i + sub.length }); i = text.indexOf(sub, i + 1); }
+  return res;
+}
+
+function findMatchingSentences(textA, textB) {
+  const sentA = splitSentences(textA);
+  const sentB = splitSentences(textB);
+  const matchedA = new Set();
   const matches = [];
 
-  for (const ts of targetSentences) {
-    const tsWords = tokenizeWords(ts);
-    if (tsWords.length < 4) continue;
-
-    let best = null;
-    for (const ss of sourceSentences) {
-      const ssWords = tokenizeWords(ss);
-      if (ssWords.length < 4) continue;
-
-      const sim = jaccardSimilarity(buildShingles(tsWords), buildShingles(ssWords));
-      if (sim >= 0.6 && (!best || sim > best.similarity)) {
-        best = { targetText: ts.trim(), sourceText: ss.trim(), similarity: sim };
-      }
+  for (const sb of sentB) {
+    const sbS = buildShingles(tokenizeWords(sb));
+    if (!sbS.size) continue;
+    let bestSim = 0, bestSa = null;
+    for (const sa of sentA) {
+      if (matchedA.has(sa)) continue;
+      const sim = jaccard(buildShingles(tokenizeWords(sa)), sbS);
+      if (sim > bestSim) { bestSim = sim; bestSa = sa; }
     }
-    if (best) {
-      const start = targetText.indexOf(best.targetText);
-      matches.push({
-        ...best,
-        start,
-        end: start >= 0 ? start + best.targetText.length : -1,
-      });
+    if (bestSim >= SENT_THRESHOLD && bestSa) {
+      matchedA.add(bestSa);
+      const inA = findAllOccurrences(textA, bestSa);
+      const inB = findAllOccurrences(textB, sb);
+      if (inA.length && inB.length)
+        matches.push({ textA: bestSa, textB: sb, similarity: +bestSim.toFixed(3), inA: inA[0], inB: inB[0], allInA: inA, allInB: inB });
     }
   }
-
   return matches;
 }
 
-/**
- * Compare targetSubmission against all earlier (original) submissions.
- * Returns array of matches per source submission.
- */
+// ── Word-sequence comparison (for visual compare tool) ────────────────────────
+
+function findCharPos(originalText, words, wordStart, wordCount) {
+  const norm = originalText.toLowerCase().replace(/[^\wа-яіїєґ\s]/gi, ' ').replace(/\s+/g, ' ');
+  const phrase = words.slice(wordStart, wordStart + wordCount).join(' ');
+  const start = norm.indexOf(phrase);
+  if (start === -1) return null;
+  return { start, end: start + phrase.length };
+}
+
+function findCommonSequences(textA, textB, wordsA, wordsB) {
+  const index = new Map();
+  for (let i = 0; i <= wordsA.length - MIN_SEQ; i++) {
+    const key = wordsA.slice(i, i + MIN_SEQ).join('\x00');
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push(i);
+  }
+
+  const matches = [];
+  const usedA = new Set(), usedB = new Set();
+  let i = 0;
+
+  while (i <= wordsB.length - MIN_SEQ) {
+    if (usedB.has(i)) { i++; continue; }
+    const key = wordsB.slice(i, i + MIN_SEQ).join('\x00');
+    if (!index.has(key)) { i++; continue; }
+
+    let bestLen = 0, bestAStart = -1;
+    for (const aStart of index.get(key)) {
+      if (usedA.has(aStart)) continue;
+      let len = MIN_SEQ;
+      while (i + len < wordsB.length && aStart + len < wordsA.length && wordsA[aStart + len] === wordsB[i + len]) len++;
+      if (len > bestLen) { bestLen = len; bestAStart = aStart; }
+    }
+
+    if (bestAStart === -1) { i++; continue; }
+
+    for (let k = 0; k < bestLen; k++) { usedA.add(bestAStart + k); usedB.add(i + k); }
+
+    const inA = findCharPos(textA, wordsA, bestAStart, bestLen);
+    const inB = findCharPos(textB, wordsB, i, bestLen);
+
+    if (inA && inB) {
+      matches.push({
+        textA: wordsA.slice(bestAStart, bestAStart + bestLen).join(' '),
+        textB: wordsB.slice(i, i + bestLen).join(' '),
+        wordCount: bestLen, inA, inB, allInA: [inA], allInB: [inB],
+      });
+    }
+    i += bestLen;
+  }
+  return matches;
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+exports.compareTexts = (textA, textB) => {
+  const wA = tokenizeWords(normalize(textA));
+  const wB = tokenizeWords(normalize(textB));
+  const matches = findCommonSequences(textA, textB, wA, wB);
+  const similarity = wB.length > 0
+    ? matches.reduce((s, m) => s + m.wordCount, 0) / wB.length
+    : 0;
+  return { matches, similarity: +Math.min(similarity, 1).toFixed(3), matchCount: matches.length };
+};
+
 exports.compare = async (targetSubmission, earlierSubmissions) => {
-  const targetText = stripBoilerplate(targetSubmission.extractedText);
+  const targetText = removeBoilerplate(normalize(targetSubmission.extractedText));
   const targetShingles = buildShingles(tokenizeWords(targetText));
   const results = [];
 
   for (const source of earlierSubmissions) {
-    const sourceText = stripBoilerplate(source.extractedText);
-    const sourceShingles = buildShingles(tokenizeWords(sourceText));
+    const sourceText = removeBoilerplate(normalize(source.extractedText));
+    if (jaccard(targetShingles, buildShingles(tokenizeWords(sourceText))) < DOC_THRESHOLD) continue;
 
-    const similarity = jaccardSimilarity(targetShingles, sourceShingles);
-    if (similarity < THRESHOLD) continue;
+    const matches = findMatchingSentences(sourceText, targetText);
+    if (!matches.length) continue;
 
-    const matches = findMatchingSentences(targetText, sourceText);
+    const similarity = +Math.min(matches.length / Math.max(splitSentences(targetText).length, 1), 1).toFixed(3);
 
     await PlagiarismResult.upsert({
       sourceSubmissionId: source.id,
       targetSubmissionId: targetSubmission.id,
-      similarity,
-      matches,
+      similarity, matches,
     });
 
     results.push({ sourceSubmissionId: source.id, similarity, matchCount: matches.length, matches });
   }
-
   return results;
 };

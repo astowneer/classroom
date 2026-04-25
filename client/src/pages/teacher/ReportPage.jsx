@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { ChevronLeft, Download } from 'lucide-react';
 
 import { useDownloadPdf } from '../../hooks/useDownloadPdf';
+import Chat from '../../components/Chat';
 
 export default function ReportPage() {
   const { submissionId } = useParams();
@@ -102,6 +103,10 @@ export default function ReportPage() {
             </CardContent>
           </Card>
         )}
+      </div>
+
+      <div className="mt-6">
+        <Chat submissionId={parseInt(submissionId)} />
       </div>
     </div>
   );

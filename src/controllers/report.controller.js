@@ -22,7 +22,6 @@ exports.get = async (req, res, next) => {
 exports.getByAssignment = async (req, res, next) => {
   try {
     const where = { assignmentId: req.params.assignmentId };
-    // Student sees only their own submission
     if (req.user.role === 'student') where.studentId = req.user.id;
 
     const submissions = await Submission.findAll({
@@ -34,6 +33,21 @@ exports.getByAssignment = async (req, res, next) => {
       group: ['Submission.id', 'student.id', 'report.id'],
     });
 
+    // Get unread message counts for each submission
+    const { Message } = require('../models');
+    const { Op, fn, col } = require('sequelize');
+    const unreadRows = await Message.findAll({
+      where: {
+        submissionId: submissions.map(s => s.id),
+        read: false,
+        senderId: { [Op.ne]: req.user.id },
+      },
+      attributes: ['submissionId', [fn('COUNT', col('id')), 'count']],
+      group: ['submissionId'],
+      raw: true,
+    });
+    const unreadMap = Object.fromEntries(unreadRows.map(r => [r.submissionId, parseInt(r.count)]));
+
     const table = submissions.map(s => ({
       submissionId: s.id,
       student: s.student,
@@ -42,6 +56,7 @@ exports.getByAssignment = async (req, res, next) => {
       plagiarismScore: s.report ? (s.report.plagiarismScore * 100).toFixed(1) + '%' : null,
       structurePassed: s.report?.structurePassed ?? null,
       sentToStudent: s.report?.sentToStudent ?? false,
+      unreadMessages: unreadMap[s.id] || 0,
     }));
 
     res.json(table);

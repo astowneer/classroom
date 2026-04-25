@@ -24,7 +24,7 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
       <table className="w-full text-sm">
         <thead className="bg-muted/50">
           <tr>
-            {['Студент', 'Статус', 'Запозичення', 'Структура', 'Здано', 'Дії'].map(h => (
+            {['Студент', 'Статус', 'Запозичення', 'Структура', 'Здано', 'Повід.', 'Дії'].map(h => (
               <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
             ))}
           </tr>
@@ -51,6 +51,11 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
               </td>
               <td className="px-4 py-3 text-muted-foreground text-xs">
                 {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('uk-UA') : '—'}
+              </td>
+              <td className="px-4 py-3">
+                {r.unreadMessages > 0
+                  ? <span className="inline-flex items-center justify-center bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5">{r.unreadMessages}</span>
+                  : <span className="text-muted-foreground text-xs">—</span>}
               </td>
               <td className="px-4 py-3">
                 <div className="flex gap-1 flex-wrap">

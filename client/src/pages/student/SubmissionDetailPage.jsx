@@ -7,6 +7,8 @@ import { ChevronLeft, Upload, Play, Send, Download } from 'lucide-react';
 
 import { useDownloadPdf } from '../../hooks/useDownloadPdf';
 
+import Chat from '../../components/Chat';
+
 export default function StudentSubmissionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -139,6 +141,10 @@ export default function StudentSubmissionDetailPage() {
           )}
         </div>
       )}
+
+      <div className="mt-4">
+        <Chat submissionId={parseInt(id)} />
+      </div>
     </div>
   );
 }

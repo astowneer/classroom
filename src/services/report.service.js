@@ -58,12 +58,22 @@ exports.generatePdf = async (submissionId) => {
     const color = COLORS[idx % COLORS.length];
     const studentName = sourceStudents[match.sourceSubmissionId] || `#${match.sourceSubmissionId}`;
     for (const m of (match.matches || [])) {
-      if (m.start >= 0 && m.end > m.start) {
-        highlights.push({ start: m.start, end: m.end, color, studentName });
+      // Find the matched text in the original extractedText
+      // m.textB contains the matched words (normalized/lowercase)
+      // We search case-insensitively in the original text
+      if (!m.textB) continue;
+      const words = m.textB.split(/\s+/).filter(Boolean);
+      if (words.length < 2) continue;
+      const pattern = new RegExp(
+        words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^\\wа-яіїєґ]*'),
+        'i'
+      );
+      const match2 = pattern.exec(fullText);
+      if (match2) {
+        highlights.push({ start: match2.index, end: match2.index + match2[0].length, color, studentName });
       }
     }
   });
-  // Sort by position
   highlights.sort((a, b) => a.start - b.start);
 
   return new Promise((resolve, reject) => {

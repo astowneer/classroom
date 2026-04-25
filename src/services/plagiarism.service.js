@@ -165,26 +165,39 @@ exports.compareTexts = (textA, textB) => {
 };
 
 exports.compare = async (targetSubmission, earlierSubmissions) => {
-  const targetText = removeBoilerplate(normalize(targetSubmission.extractedText));
-  const targetShingles = buildShingles(tokenizeWords(targetText));
+  const targetText = normalize(targetSubmission.extractedText);
+  const targetWords = tokenizeWords(targetText);
+  const targetShingles = buildShingles(targetWords);
   const results = [];
 
   for (const source of earlierSubmissions) {
-    const sourceText = removeBoilerplate(normalize(source.extractedText));
-    if (jaccard(targetShingles, buildShingles(tokenizeWords(sourceText))) < DOC_THRESHOLD) continue;
+    const sourceText = normalize(source.extractedText);
+    const sourceWords = tokenizeWords(sourceText);
 
-    const matches = findMatchingSentences(sourceText, targetText);
+    // Quick doc-level filter
+    if (jaccard(targetShingles, buildShingles(sourceWords)) < DOC_THRESHOLD) continue;
+
+    // Use same LCS algorithm as compareTexts for consistency
+    const matches = findCommonSequences(sourceText, targetText, sourceWords, targetWords);
     if (!matches.length) continue;
 
-    const similarity = +Math.min(matches.length / Math.max(splitSentences(targetText).length, 1), 1).toFixed(3);
+    const similarity = targetWords.length > 0
+      ? Math.min(matches.reduce((s, m) => s + m.wordCount, 0) / targetWords.length, 1)
+      : 0;
 
     await PlagiarismResult.upsert({
       sourceSubmissionId: source.id,
       targetSubmissionId: targetSubmission.id,
-      similarity, matches,
+      similarity: +similarity.toFixed(3),
+      matches,
     });
 
-    results.push({ sourceSubmissionId: source.id, similarity, matchCount: matches.length, matches });
+    results.push({
+      sourceSubmissionId: source.id,
+      similarity: +similarity.toFixed(3),
+      matchCount: matches.length,
+      matches,
+    });
   }
   return results;
 };

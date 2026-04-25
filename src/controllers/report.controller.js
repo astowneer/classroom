@@ -1,5 +1,5 @@
 const reportService = require('../services/report.service');
-const { Report, Submission, User } = require('../models');
+const { Report, Submission, User, Assignment } = require('../models');
 
 // Teacher sees all, student sees only their own
 async function canAccess(submissionId, user) {
@@ -13,7 +13,16 @@ exports.get = async (req, res, next) => {
     if (!await canAccess(req.params.submissionId, req.user)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const report = await Report.findOne({ where: { submissionId: req.params.submissionId } });
+    const report = await Report.findOne({
+      where: { submissionId: req.params.submissionId },
+      include: [{
+        model: Submission, as: 'submission',
+        include: [
+          { model: User, as: 'student', attributes: ['id', 'name', 'email'] },
+          { model: Assignment, as: 'assignment', attributes: ['id', 'title'] },
+        ],
+      }],
+    });
     if (!report) return res.status(404).json({ error: 'Not found' });
     res.json(report);
   } catch (err) { next(err); }

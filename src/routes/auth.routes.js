@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const authController = require('../controllers/auth.controller');
+const { authenticate } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
@@ -82,6 +83,6 @@ router.post('/logout', authController.logout);
  *       200:
  *         description: Дані поточного користувача
  */
-router.get('/me', authController.me);
+router.get('/me', authenticate, authController.me);
 
 module.exports = router;

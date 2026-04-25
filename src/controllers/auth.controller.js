@@ -12,8 +12,9 @@ exports.googleCallback = async (req, res, next) => {
   try {
     const { code, state } = req.query;
     const role = state === 'student' ? 'student' : 'teacher';
-    const { token, user } = await authService.handleCallback(code, role);
-    res.json({ token, user });
+    const { token } = await authService.handleCallback(code, role);
+    // Redirect to frontend with token
+    res.redirect(`http://localhost:5173/auth/callback?token=${token}`);
   } catch (err) { next(err); }
 };
 

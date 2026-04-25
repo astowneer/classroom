@@ -17,6 +17,7 @@ const Assignment = require('./assignment.model')(sequelize);
 const Submission = require('./submission.model')(sequelize);
 const PlagiarismResult = require('./plagiarismResult.model')(sequelize);
 const Report = require('./report.model')(sequelize);
+const Notification = require('./notification.model')(sequelize);
 
 // Associations
 User.hasMany(Course, { foreignKey: 'teacherId', as: 'taughtCourses' });
@@ -37,4 +38,8 @@ Report.belongsTo(Submission, { foreignKey: 'submissionId', as: 'submission' });
 Submission.hasMany(PlagiarismResult, { foreignKey: 'sourceSubmissionId', as: 'plagiarismAsSource' });
 Submission.hasMany(PlagiarismResult, { foreignKey: 'targetSubmissionId', as: 'plagiarismAsTarget' });
 
-module.exports = { sequelize, User, Course, Assignment, Submission, PlagiarismResult, Report };
+User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+Notification.belongsTo(Submission, { foreignKey: 'submissionId', as: 'submission' });
+
+module.exports = { sequelize, User, Course, Assignment, Submission, PlagiarismResult, Report, Notification };

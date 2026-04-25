@@ -12,15 +12,22 @@ const SCOPES = [
   'https://www.googleapis.com/auth/classroom.courses.readonly',
   'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
   'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
+  'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
+  'https://www.googleapis.com/auth/classroom.announcements', // for notifying students
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
 ];
 
-exports.getAuthUrl = () =>
-  oauth2Client.generateAuthUrl({ access_type: 'offline', scope: SCOPES, prompt: 'consent' });
+exports.getAuthUrl = (role = 'teacher') =>
+  oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: SCOPES,
+    prompt: 'consent',
+    state: role, // passed back in callback
+  });
 
-exports.handleCallback = async (code) => {
+exports.handleCallback = async (code, role = 'teacher') => {
   const { tokens } = await oauth2Client.getToken(code);
   oauth2Client.setCredentials(tokens);
 
@@ -29,7 +36,7 @@ exports.handleCallback = async (code) => {
 
   const [user] = await User.findOrCreate({
     where: { googleId: data.id },
-    defaults: { email: data.email, name: data.name, role: 'teacher' },
+    defaults: { email: data.email, name: data.name, role },
   });
 
   await user.update({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });

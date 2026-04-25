@@ -28,7 +28,7 @@ exports.runChecks = async (req, res, next) => {
 
 exports.notifyStudent = async (req, res, next) => {
   try {
-    await notificationService.notifyStudent(req.params.id, req.body.message);
+    await notificationService.notifyStudent(req.params.id, req.body.message, req.user);
     res.json({ success: true });
   } catch (err) { next(err); }
 };

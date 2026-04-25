@@ -5,11 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Spinner } from '../../
 import { Button } from '../../components/ui/Button';
 import { ChevronLeft, Download } from 'lucide-react';
 
+import { useDownloadPdf } from '../../hooks/useDownloadPdf';
+
 export default function ReportPage() {
   const { submissionId } = useParams();
   const navigate = useNavigate();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const downloadPdf = useDownloadPdf();
 
   useEffect(() => {
     api.get(`/reports/${submissionId}`).then(r => setReport(r.data)).finally(() => setLoading(false));
@@ -25,8 +28,7 @@ export default function ReportPage() {
       <div className="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
         <h1 className="text-2xl font-bold flex-1">Звіт перевірки</h1>
-        <Button size="sm" variant="outline"
-          onClick={() => window.open(`http://localhost:3000/api/reports/${submissionId}/download`)}>
+        <Button size="sm" variant="outline" onClick={() => downloadPdf(submissionId)}>
           <Download className="h-4 w-4 mr-2" />PDF
         </Button>
       </div>

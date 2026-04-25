@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Spinner } from '../../
 import { Button } from '../../components/ui/Button';
 import { ChevronLeft, Play, Download, Send, RefreshCw } from 'lucide-react';
 
+import { useDownloadPdf } from '../../hooks/useDownloadPdf';
+
 const statusLabel = s => ({
   pending: 'Очікує', text_extracted: 'Текст витягнуто', checked: 'Перевірено',
   failed: 'Помилка', resubmit_review: 'На розгляді', resubmit_accepted: 'Прийнято',
@@ -26,6 +28,7 @@ export default function AssignmentDetailPage() {
   const [syncing, setSyncing] = useState(false);
   const [notifyId, setNotifyId] = useState(null);
   const [message, setMessage] = useState('');
+  const downloadPdf = useDownloadPdf();
 
   const load = async () => {
     const [aRes, rRes] = await Promise.all([
@@ -127,7 +130,7 @@ export default function AssignmentDetailPage() {
                         Звіт
                       </Button>
                       <Button size="sm" variant="outline"
-                        onClick={() => window.open(`http://localhost:3000/api/reports/${r.submissionId}/download`)}>
+                        onClick={() => downloadPdf(r.submissionId)}>
                         <Download className="h-3 w-3" />
                       </Button>
                       <Button size="sm" variant="ghost"

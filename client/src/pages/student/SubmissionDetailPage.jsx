@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Spinner } from '../../
 import { Button } from '../../components/ui/Button';
 import { ChevronLeft, Upload, Play, Send, Download } from 'lucide-react';
 
+import { useDownloadPdf } from '../../hooks/useDownloadPdf';
+
 export default function StudentSubmissionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -14,6 +16,7 @@ export default function StudentSubmissionDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [checking, setChecking] = useState(false);
   const fileRef = useRef();
+  const downloadPdf = useDownloadPdf();
 
   const load = async () => {
     const sRes = await api.get('/submissions', { params: {} });
@@ -87,8 +90,7 @@ export default function StudentSubmissionDetailPage() {
             </Button>
           )}
           {report && (
-            <Button size="sm" variant="outline"
-              onClick={() => window.open(`http://localhost:3000/api/reports/${id}/download`)}>
+            <Button size="sm" variant="outline" onClick={() => downloadPdf(id)}>
               <Download className="h-4 w-4 mr-2" />PDF звіт
             </Button>
           )}

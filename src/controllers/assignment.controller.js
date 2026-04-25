@@ -42,3 +42,16 @@ exports.updateDescription = async (req, res, next) => {
     res.json(assignment);
   } catch (err) { next(err); }
 };
+
+exports.updateSettings = async (req, res, next) => {
+  try {
+    const assignment = await Assignment.findByPk(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    const { minTextLength, description } = req.body;
+    await assignment.update({
+      ...(minTextLength !== undefined && { minTextLength: parseInt(minTextLength) }),
+      ...(description !== undefined && { description }),
+    });
+    res.json(assignment);
+  } catch (err) { next(err); }
+};

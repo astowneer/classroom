@@ -21,6 +21,19 @@ exports.runAll = async (assignmentId, teacher) => {
     if (!submission.extractedText && submission.fileUrl) {
       try {
         const text = await pdfService.extractText(teacher, submission.fileUrl);
+
+        // PDF with only scanned images returns empty or very short text
+        const minLength = assignment.minTextLength ?? 100;
+        if (!text || text.trim().length < minLength) {
+          await submission.update({ status: 'failed' });
+          await notificationService.notifyStudent(
+            submission.id,
+            `Не вдалося отримати достатньо тексту з вашої роботи (знайдено ${text.trim().length} символів, потрібно мінімум ${minLength}). PDF містить лише зображення або роботу не заповнено. Будь ласка, перездайте.`
+          );
+          results.push({ submissionId: submission.id, status: 'failed', error: 'Insufficient text' });
+          continue;
+        }
+
         await submission.update({ extractedText: text, status: 'text_extracted' });
       } catch (err) {
         await submission.update({ status: 'failed' });

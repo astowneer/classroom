@@ -6,4 +6,5 @@ module.exports = (sequelize) => sequelize.define('Assignment', {
   description:           { type: DataTypes.TEXT },
   courseId:              { type: DataTypes.INTEGER },
   structureRequirements: { type: DataTypes.JSON, defaultValue: [] },
+  minTextLength:         { type: DataTypes.INTEGER, defaultValue: 100 },
 });

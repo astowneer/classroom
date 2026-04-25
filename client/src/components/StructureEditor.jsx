@@ -6,7 +6,7 @@ import api from '../lib/api';
 
 const empty = () => ({ name: '', aliases: '', required: true, forbidden: false, minWords: '' });
 
-export default function StructureEditor({ assignmentId, initial = [], onSave }) {
+export default function StructureEditor({ assignmentId, initial = [], initialMinLength = 100, initialDescription = '', onSave }) {
   const [sections, setSections] = useState(
     initial.length ? initial.map(s =>
       typeof s === 'string'
@@ -14,6 +14,8 @@ export default function StructureEditor({ assignmentId, initial = [], onSave }) 
         : { ...s, aliases: (s.aliases || []).join(', '), minWords: s.minWords || '' }
     ) : [empty()]
   );
+  const [minTextLength, setMinTextLength] = useState(initialMinLength);
+  const [description, setDescription] = useState(initialDescription);
   const [saving, setSaving] = useState(false);
 
   const update = (i, field, value) =>
@@ -30,7 +32,10 @@ export default function StructureEditor({ assignmentId, initial = [], onSave }) 
         forbidden: s.forbidden,
         ...(s.minWords ? { minWords: parseInt(s.minWords) } : {}),
       }));
-    await api.put(`/assignments/${assignmentId}/structure`, { sections: payload });
+    await Promise.all([
+      api.put(`/assignments/${assignmentId}/structure`, { sections: payload }),
+      api.put(`/assignments/${assignmentId}/settings`, { minTextLength: parseInt(minTextLength) || 100, description }),
+    ]);
     setSaving(false);
     onSave?.(payload);
   };
@@ -41,6 +46,20 @@ export default function StructureEditor({ assignmentId, initial = [], onSave }) 
         <CardTitle className="text-base">Вимоги до структури</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {/* General settings */}
+        <div className="flex gap-4 pb-3 border-b">
+          <label className="flex flex-col gap-1 text-xs">
+            Мінімум символів у роботі
+            <input type="number" min="0" className="border rounded px-2 py-1 w-32 text-sm"
+              value={minTextLength} onChange={e => setMinTextLength(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs flex-1">
+            Опис завдання (для перевірки повноти теми)
+            <textarea className="border rounded px-2 py-1 text-sm resize-none" rows={2}
+              value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="Опишіть що має бути в роботі..." />
+          </label>
+        </div>
         {sections.map((s, i) => (
           <div key={i} className="border rounded-md p-3 flex flex-col gap-2 bg-muted/20">
             <div className="flex gap-2 items-center">

@@ -51,27 +51,33 @@ exports.check = (text, sections) => {
   const allNames = sections.flatMap(getNames);
 
   // Find each section: position + content word count
+  // Also track duplicates
   const foundSections = [];
+  const duplicates = [];
 
   for (let i = 0; i < lines.length; i++) {
     if (!lines[i]) continue;
     for (const section of sections) {
       const names = getNames(section);
-      if (isHeading(lines[i], names) && !foundSections.find(f => f.displayName === getDisplayName(section))) {
-        // Collect content until next heading
-        let content = '';
-        for (let j = i + 1; j < lines.length; j++) {
-          if (lines[j] && allNames.some(n => isHeading(lines[j], [n]))) break;
-          content += ' ' + lines[j];
-        }
-        foundSections.push({
-          section,
-          displayName: getDisplayName(section),
-          lineIndex: i,
-          wordCount: countWords(content),
-        });
+      if (!isHeading(lines[i], names)) continue;
+
+      const displayName = getDisplayName(section);
+      const alreadyFound = foundSections.find(f => f.displayName === displayName);
+
+      if (alreadyFound) {
+        // Duplicate heading found
+        if (!duplicates.includes(displayName)) duplicates.push(displayName);
         break;
       }
+
+      // Collect content until next heading
+      let content = '';
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j] && allNames.some(n => isHeading(lines[j], [n]))) break;
+        content += ' ' + lines[j];
+      }
+      foundSections.push({ section, displayName, lineIndex: i, wordCount: countWords(content) });
+      break;
     }
   }
 
@@ -113,12 +119,12 @@ exports.check = (text, sections) => {
   }
 
   // Score: percentage of checks passed
-  const totalChecks = sections.length + forbiddenFound.length + emptySections.length + orderViolations.length;
-  const failedChecks = missing.length + forbiddenFound.length + emptySections.length + orderViolations.length;
+  const totalChecks = sections.length + forbiddenFound.length + emptySections.length + orderViolations.length + duplicates.length;
+  const failedChecks = missing.length + forbiddenFound.length + emptySections.length + orderViolations.length + duplicates.length;
   const score = totalChecks === 0 ? 100 : Math.round(((totalChecks - failedChecks) / totalChecks) * 100);
 
   const passed = missing.length === 0 && orderViolations.length === 0
-    && emptySections.length === 0 && forbiddenFound.length === 0;
+    && emptySections.length === 0 && forbiddenFound.length === 0 && duplicates.length === 0;
 
-  return { passed, score, missing, found: foundNames, orderViolations, emptySections, forbiddenFound };
+  return { passed, score, missing, found: foundNames, orderViolations, emptySections, forbiddenFound, duplicates };
 };

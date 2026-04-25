@@ -61,6 +61,9 @@ export default function ReportPage() {
             {structureResult?.missing?.length > 0 && (
               <p className="text-sm text-destructive">Відсутні: {structureResult.missing.join(', ')}</p>
             )}
+            {structureResult?.duplicates?.length > 0 && (
+              <p className="text-sm text-yellow-700">Дублікати розділів: {structureResult.duplicates.join(', ')}</p>
+            )}
             {structureResult?.orderViolations?.length > 0 && (
               <p className="text-sm text-yellow-700">Порушення порядку: {structureResult.orderViolations.join('; ')}</p>
             )}

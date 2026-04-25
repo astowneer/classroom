@@ -139,5 +139,6 @@ router.post('/sync/:courseId', authorize('teacher'), assignmentController.syncFr
  *               $ref: '#/components/schemas/Assignment'
  */
 router.put('/:id/structure', authorize('teacher'), assignmentController.updateStructureRequirements);
+router.put('/:id/description', authorize('teacher'), assignmentController.updateDescription);
 
 module.exports = router;

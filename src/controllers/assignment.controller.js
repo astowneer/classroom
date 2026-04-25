@@ -33,3 +33,12 @@ exports.updateStructureRequirements = async (req, res, next) => {
     res.json(assignment);
   } catch (err) { next(err); }
 };
+
+exports.updateDescription = async (req, res, next) => {
+  try {
+    const assignment = await Assignment.findByPk(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    await assignment.update({ description: req.body.description });
+    res.json(assignment);
+  } catch (err) { next(err); }
+};

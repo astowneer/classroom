@@ -3,6 +3,7 @@ const pdfService = require('./pdf.service');
 const plagiarismService = require('./plagiarism.service');
 const structureService = require('./structure.service');
 const grammarService = require('./grammar.service');
+const completenessService = require('./completeness.service');
 const reportService = require('./report.service');
 const notificationService = require('./notification.service');
 
@@ -53,8 +54,17 @@ exports.runAll = async (assignmentId, teacher) => {
       console.warn(`[Grammar] LanguageTool unavailable for submission ${submission.id}`);
     }
 
-    // 5. Save report
-    const report = await reportService.create(submission, structureResult, plagiarismMatches, grammarResult);
+    // 5. Completeness check via semantic similarity
+    let completenessResult = null;
+    try {
+      const assignmentContext = [assignment.title, assignment.description].filter(Boolean).join('\n');
+      completenessResult = await completenessService.check(submission.extractedText, assignmentContext);
+    } catch (err) {
+      console.warn(`[Completeness] Failed for submission ${submission.id}:`, err.message);
+    }
+
+    // 6. Save report
+    const report = await reportService.create(submission, structureResult, plagiarismMatches, grammarResult, completenessResult);
 
     await submission.update({ status: 'checked' });
     results.push({ submissionId: submission.id, status: 'checked', report });

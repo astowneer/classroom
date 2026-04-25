@@ -33,6 +33,7 @@ exports.syncAssignments = async (user, courseId) => {
     const [assignment] = await Assignment.upsert({
       googleAssignmentId: cw.id,
       title: cw.title,
+      description: cw.description || null,
       courseId: course.id,
     });
     return assignment;

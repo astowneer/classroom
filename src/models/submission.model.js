@@ -10,12 +10,9 @@ module.exports = (sequelize) => sequelize.define('Submission', {
   submittedAt:        { type: DataTypes.DATE },
   status: {
     type: DataTypes.ENUM(
-      'pending', 'text_extracted', 'checked', 'failed',
-      'resubmit_pending',   // student uploaded new file, awaiting self-check
-      'resubmit_checked',   // self-check done, student can submit for review
-      'resubmit_review',    // student submitted for teacher review
-      'resubmit_accepted',  // teacher accepted
-      'resubmit_rejected',  // teacher rejected
+      'pending', 'text_extracted', 'checked', 'failed', 'too_large',
+      'resubmit_pending', 'resubmit_checked', 'resubmit_review',
+      'resubmit_accepted', 'resubmit_rejected',
     ),
     defaultValue: 'pending',
   },

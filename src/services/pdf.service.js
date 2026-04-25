@@ -9,10 +9,22 @@ function extractFileId(fileUrl) {
   return match[1];
 }
 
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
 exports.extractText = async (user, fileUrl) => {
   const auth = createAuthClient(user);
   const drive = google.drive({ version: 'v3', auth });
   const fileId = extractFileId(fileUrl);
+
+  // Check file size before downloading
+  const meta = await drive.files.get({ fileId, fields: 'size' });
+  const size = parseInt(meta.data.size || '0');
+  if (size > MAX_FILE_SIZE) {
+    const err = new Error(`Файл занадто великий: ${(size / 1024 / 1024).toFixed(1)}MB. Максимум — 20MB.`);
+    err.code = 'FILE_TOO_LARGE';
+    throw err;
+  }
+
   const response = await drive.files.get(
     { fileId, alt: 'media' },
     { responseType: 'arraybuffer' }

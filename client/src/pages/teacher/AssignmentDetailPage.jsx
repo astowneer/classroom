@@ -125,8 +125,8 @@ export default function AssignmentDetailPage() {
 
   if (loading) return <div className="flex justify-center mt-20"><Spinner className="h-8 w-8" /></div>;
 
-  const failed = results.filter(r => r.status === 'failed');
-  const normal = results.filter(r => r.status !== 'failed');
+  const failed = results.filter(r => r.status === 'failed' || r.status === 'too_large');
+  const normal = results.filter(r => r.status !== 'failed' && r.status !== 'too_large');
 
   return (
     <div>
@@ -185,7 +185,9 @@ export default function AssignmentDetailPage() {
                   <div>
                     <p className="font-medium text-sm">{r.student?.name || r.student?.email || '—'}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Не вдалося витягти текст — робота містить лише зображення або пошкоджений PDF
+                      {r.status === 'too_large'
+                        ? 'Файл занадто великий — студент має стиснути PDF або перездати меншим файлом'
+                        : 'Не вдалося витягти текст — робота містить лише зображення або пошкоджений PDF'}
                     </p>
                   </div>
                   <Button size="sm" variant="outline"

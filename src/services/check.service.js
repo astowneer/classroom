@@ -36,12 +36,21 @@ exports.runAll = async (assignmentId, teacher) => {
 
         await submission.update({ extractedText: text, status: 'text_extracted' });
       } catch (err) {
-        await submission.update({ status: 'failed' });
-        await notificationService.notifyStudent(
-          submission.id,
-          'Не вдалося отримати текст з вашої роботи. Будь ласка, перездайте у форматі PDF.'
-        );
-        results.push({ submissionId: submission.id, status: 'failed', error: err.message });
+        if (err.code === 'FILE_TOO_LARGE') {
+          await submission.update({ status: 'too_large' });
+          await notificationService.notifyStudent(
+            submission.id,
+            `Ваша робота не може бути перевірена: ${err.message} Будь ласка, стисніть PDF або перездайте меншим файлом.`
+          );
+          results.push({ submissionId: submission.id, status: 'too_large', error: err.message });
+        } else {
+          await submission.update({ status: 'failed' });
+          await notificationService.notifyStudent(
+            submission.id,
+            'Не вдалося отримати текст з вашої роботи. Будь ласка, перездайте у форматі PDF.'
+          );
+          results.push({ submissionId: submission.id, status: 'failed', error: err.message });
+        }
         continue;
       }
     }

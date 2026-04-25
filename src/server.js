@@ -10,6 +10,7 @@ sequelize.authenticate()
     return sequelize.sync();
   })
   .then(() => {
+    require('./jobs/sync.job'); // start cron
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch(err => {

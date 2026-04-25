@@ -41,6 +41,12 @@ exports.handleCallback = async (code, role = 'teacher') => {
 
   await user.update({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
 
+  // Sync courses & assignments immediately after teacher login
+  if (role === 'teacher') {
+    const syncService = require('./sync.service');
+    syncService.syncAll(user).catch(err => console.warn('[Login sync failed]', err.message));
+  }
+
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
   return { token, user };
 };

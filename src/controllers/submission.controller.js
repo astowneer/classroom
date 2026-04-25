@@ -33,6 +33,18 @@ exports.runChecks = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// POST /submissions/check-selected — check only selected submission IDs
+exports.runChecksSelected = async (req, res, next) => {
+  try {
+    const { submissionIds, assignmentId } = req.body;
+    if (!submissionIds?.length || !assignmentId) {
+      return res.status(400).json({ error: 'submissionIds and assignmentId required' });
+    }
+    const results = await checkService.runSelected(assignmentId, submissionIds, req.user);
+    res.json(results);
+  } catch (err) { next(err); }
+};
+
 exports.notifyStudent = async (req, res, next) => {
   try {
     await notificationService.notifyStudent(req.params.id, req.body.message, req.user);

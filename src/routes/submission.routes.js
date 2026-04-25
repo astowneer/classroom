@@ -74,6 +74,7 @@ router.post('/sync/:assignmentId', authorize('teacher'), submissionController.sy
  *         description: Результати перевірки
  */
 router.post('/check/:assignmentId', authorize('teacher'), submissionController.runChecks);
+router.post('/check-selected', authorize('teacher'), submissionController.runChecksSelected);
 
 /**
  * @swagger

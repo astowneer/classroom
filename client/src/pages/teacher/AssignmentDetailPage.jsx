@@ -19,12 +19,26 @@ const statusVariant = s => ({
   resubmit_accepted: 'success', resubmit_rejected: 'destructive',
 }[s] || 'secondary');
 
-function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, message, setMessage, notify, review }) {
+function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, message, setMessage, notify, review, selected, setSelected }) {
+  const allIds = results.map(r => r.submissionId);
+  const allChecked = allIds.length > 0 && allIds.every(id => selected.has(id));
+
+  const toggleAll = () => {
+    if (allChecked) setSelected(new Set());
+    else setSelected(new Set(allIds));
+  };
+  const toggle = (id) => setSelected(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <thead className="bg-muted/50">
           <tr>
+            <th className="px-3 py-3"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
             {['Студент', 'Статус', 'Запозичення', 'Структура', 'Оцінка', 'Здано', 'Повід.', 'Дії'].map(h => (
               <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
             ))}
@@ -33,6 +47,7 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
         <tbody>
           {results.map(r => (
             <tr key={r.submissionId} className="border-t hover:bg-muted/20">
+              <td className="px-3 py-3"><input type="checkbox" checked={selected.has(r.submissionId)} onChange={() => toggle(r.submissionId)} /></td>
               <td className="px-4 py-3">
                 <div className="font-medium">{r.student?.name || '—'}</div>
                 <div className="text-xs text-muted-foreground">{r.student?.email}</div>
@@ -105,6 +120,7 @@ export default function AssignmentDetailPage() {
   const [showStructure, setShowStructure] = useState(false);
   const [showGrading, setShowGrading] = useState(false);
   const [tab, setTab] = useState('results');
+  const [selected, setSelected] = useState(new Set());
   const downloadPdf = useDownloadPdf();
 
   const load = async () => {
@@ -121,6 +137,14 @@ export default function AssignmentDetailPage() {
 
   const sync = async () => { setSyncing(true); await api.post(`/submissions/sync/${assignmentId}`); await load(); setSyncing(false); };
   const runCheck = async () => { setChecking(true); await api.post(`/submissions/check/${assignmentId}`); await load(); setChecking(false); };
+  const runCheckSelected = async () => {
+    if (!selected.size) return;
+    setChecking(true);
+    await api.post('/submissions/check-selected', { submissionIds: [...selected], assignmentId: parseInt(assignmentId) });
+    setSelected(new Set());
+    await load();
+    setChecking(false);
+  };
   const notify = async (id) => {
     if (!message.trim()) return;
     await api.post(`/submissions/${id}/notify`, { message });
@@ -147,6 +171,11 @@ export default function AssignmentDetailPage() {
         <Button size="sm" onClick={runCheck} disabled={checking}>
           <Play className={`h-4 w-4 mr-2 ${checking ? 'animate-spin' : ''}`} />Запустити перевірку
         </Button>
+        {selected.size > 0 && (
+          <Button size="sm" variant="outline" onClick={runCheckSelected} disabled={checking}>
+            <Play className="h-4 w-4 mr-2" />Перевірити вибрані ({selected.size})
+          </Button>
+        )}
         <Button size="sm" variant="outline" onClick={() => setShowStructure(s => !s)}>
           {showStructure ? 'Сховати структуру' : 'Налаштувати структуру'}
         </Button>
@@ -187,7 +216,8 @@ export default function AssignmentDetailPage() {
           ? <p className="text-muted-foreground">Робіт не знайдено.</p>
           : <ResultsTable results={normal} navigate={navigate} downloadPdf={downloadPdf}
               notifyId={notifyId} setNotifyId={setNotifyId} message={message}
-              setMessage={setMessage} notify={notify} review={review} />
+              setMessage={setMessage} notify={notify} review={review}
+              selected={selected} setSelected={setSelected} />
       )}
 
       {tab === 'failed' && (

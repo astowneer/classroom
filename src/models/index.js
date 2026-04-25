@@ -8,6 +8,17 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST || 'localhost',
     dialect: process.env.DB_DIALECT || 'postgres',
     logging: false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,        // release connection after 10s idle
+      evict: 10000,       // check for idle connections every 10s
+    },
+    dialectOptions: {
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
+    },
   }
 );
 

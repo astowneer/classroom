@@ -99,11 +99,13 @@ function findMatchingSentences(textA, textB) {
 // ── Word-sequence comparison (for visual compare tool) ────────────────────────
 
 function findCharPos(originalText, words, wordStart, wordCount) {
-  const norm = originalText.toLowerCase().replace(/[^\wа-яіїєґ\s]/gi, ' ').replace(/\s+/g, ' ');
-  const phrase = words.slice(wordStart, wordStart + wordCount).join(' ');
-  const start = norm.indexOf(phrase);
-  if (start === -1) return null;
-  return { start, end: start + phrase.length };
+  // Build regex that matches the words with any non-word chars between them
+  const escaped = words.slice(wordStart, wordStart + wordCount)
+    .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(escaped.join('[^\\wа-яіїєґ]*'), 'i');
+  const match = pattern.exec(originalText);
+  if (!match) return null;
+  return { start: match.index, end: match.index + match[0].length };
 }
 
 function findCommonSequences(textA, textB, wordsA, wordsB) {

@@ -24,9 +24,28 @@ const statusVariant = s => ({
 
 function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, message, setMessage, notify, review, selected, setSelected }) {
   const [page, setPage] = useState(1);
-  const allIds = results.map(r => r.submissionId);
+  const [filter, setFilter] = useState({ status: '', plagiarism: '', grade: '' });
+
+  const filtered = results.filter(r => {
+    if (filter.status && r.status !== filter.status) return false;
+    if (filter.plagiarism) {
+      const score = parseFloat(r.plagiarismScore) || 0;
+      if (filter.plagiarism === 'low'    && score >= 30) return false;
+      if (filter.plagiarism === 'medium' && (score < 30 || score >= 70)) return false;
+      if (filter.plagiarism === 'high'   && score < 70) return false;
+    }
+    if (filter.grade && r.grade) {
+      const pct = r.grade.maxTotal > 0 ? r.grade.total / r.grade.maxTotal : 0;
+      if (filter.grade === 'good'   && pct < 0.75) return false;
+      if (filter.grade === 'medium' && (pct < 0.5 || pct >= 0.75)) return false;
+      if (filter.grade === 'bad'    && pct >= 0.5) return false;
+    }
+    return true;
+  });
+
+  const allIds = filtered.map(r => r.submissionId);
   const allChecked = allIds.length > 0 && allIds.every(id => selected.has(id));
-  const paged = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const toggleAll = () => {
     if (allChecked) setSelected(new Set());
@@ -38,8 +57,41 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
     return next;
   });
 
+  const setF = (key, val) => { setFilter(f => ({ ...f, [key]: val })); setPage(1); };
+
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="flex flex-col gap-3">
+      {/* Filters */}
+      <div className="flex gap-2 flex-wrap text-sm">
+        <select className="border rounded px-2 py-1 text-sm" value={filter.status} onChange={e => setF('status', e.target.value)}>
+          <option value="">Всі статуси</option>
+          <option value="checked">Перевірено</option>
+          <option value="pending">Очікує</option>
+          <option value="failed">Помилка</option>
+          <option value="resubmit_review">На розгляді</option>
+          <option value="resubmit_accepted">Прийнято</option>
+        </select>
+        <select className="border rounded px-2 py-1 text-sm" value={filter.plagiarism} onChange={e => setF('plagiarism', e.target.value)}>
+          <option value="">Всі запозичення</option>
+          <option value="low">До 30% (низьке)</option>
+          <option value="medium">30–70% (середнє)</option>
+          <option value="high">Від 70% (високе)</option>
+        </select>
+        <select className="border rounded px-2 py-1 text-sm" value={filter.grade} onChange={e => setF('grade', e.target.value)}>
+          <option value="">Всі оцінки</option>
+          <option value="good">≥75% балів</option>
+          <option value="medium">50–75% балів</option>
+          <option value="bad">До 50% балів</option>
+        </select>
+        {(filter.status || filter.plagiarism || filter.grade) && (
+          <button className="text-xs text-muted-foreground underline" onClick={() => setFilter({ status: '', plagiarism: '', grade: '' })}>
+            Скинути
+          </button>
+        )}
+        <span className="text-muted-foreground text-xs self-center ml-auto">{filtered.length} з {results.length}</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <thead className="bg-muted/50">
           <tr>
@@ -108,7 +160,8 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
           ))}
         </tbody>
       </table>
-      <Pagination page={page} total={results.length} pageSize={PAGE_SIZE} onChange={setPage} />
+      <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onChange={setPage} />
+      </div>
     </div>
   );
 }

@@ -6,6 +6,9 @@ import { Button } from '../../components/ui/Button';
 import { ChevronLeft, Play, Download, Send, RefreshCw } from 'lucide-react';
 import StructureEditor from '../../components/StructureEditor';
 import GradingEditor from '../../components/GradingEditor';
+import Pagination from '../../components/Pagination';
+
+const PAGE_SIZE = 5;
 import { useDownloadPdf } from '../../hooks/useDownloadPdf';
 
 const statusLabel = s => ({
@@ -20,8 +23,10 @@ const statusVariant = s => ({
 }[s] || 'secondary');
 
 function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, message, setMessage, notify, review, selected, setSelected }) {
+  const [page, setPage] = useState(1);
   const allIds = results.map(r => r.submissionId);
   const allChecked = allIds.length > 0 && allIds.every(id => selected.has(id));
+  const paged = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const toggleAll = () => {
     if (allChecked) setSelected(new Set());
@@ -45,7 +50,7 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
           </tr>
         </thead>
         <tbody>
-          {results.map(r => (
+          {paged.map(r => (
             <tr key={r.submissionId} className="border-t hover:bg-muted/20">
               <td className="px-3 py-3"><input type="checkbox" checked={selected.has(r.submissionId)} onChange={() => toggle(r.submissionId)} /></td>
               <td className="px-4 py-3">
@@ -103,6 +108,7 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
           ))}
         </tbody>
       </table>
+      <Pagination page={page} total={results.length} pageSize={PAGE_SIZE} onChange={setPage} />
     </div>
   );
 }

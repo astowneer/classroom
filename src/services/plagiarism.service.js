@@ -37,9 +37,9 @@ function stripBoilerplate(text) {
 
 function splitSentences(text) {
   return text
-    .split(/[.!?\n]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 30);
+    .split(/(?<=[.!?])\s+|\n{2,}/)
+    .flatMap(chunk => chunk.split(/[.!?]+/).map(s => s.trim()))
+    .filter(s => s.length > 15); // технічні тексти мають короткі рядки
 }
 
 function findMatchingSentences(targetText, sourceText) {
@@ -49,17 +49,25 @@ function findMatchingSentences(targetText, sourceText) {
 
   for (const ts of targetSentences) {
     const tsWords = tokenizeWords(ts);
-    if (tsWords.length < 8) continue;
+    if (tsWords.length < 4) continue;
 
+    let best = null;
     for (const ss of sourceSentences) {
       const ssWords = tokenizeWords(ss);
-      if (ssWords.length < 8) continue;
+      if (ssWords.length < 4) continue;
 
       const sim = jaccardSimilarity(buildShingles(tsWords), buildShingles(ssWords));
-      if (sim >= 0.6) {
-        matches.push({ targetText: ts.trim(), sourceText: ss.trim(), similarity: sim });
-        break;
+      if (sim >= 0.6 && (!best || sim > best.similarity)) {
+        best = { targetText: ts.trim(), sourceText: ss.trim(), similarity: sim };
       }
+    }
+    if (best) {
+      const start = targetText.indexOf(best.targetText);
+      matches.push({
+        ...best,
+        start,
+        end: start >= 0 ? start + best.targetText.length : -1,
+      });
     }
   }
 

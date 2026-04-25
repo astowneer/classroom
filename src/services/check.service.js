@@ -4,6 +4,7 @@ const plagiarismService = require('./plagiarism.service');
 const structureService = require('./structure.service');
 const grammarService = require('./grammar.service');
 const completenessService = require('./completeness.service');
+const gradingService = require('./grading.service');
 const reportService = require('./report.service');
 const notificationService = require('./notification.service');
 
@@ -85,8 +86,16 @@ exports.runAll = async (assignmentId, teacher) => {
       console.warn(`[Completeness] Failed for submission ${submission.id}:`, err.message);
     }
 
-    // 6. Save report
-    const report = await reportService.create(submission, structureResult, plagiarismMatches, grammarResult, completenessResult);
+    // 6. Calculate grade
+    const grade = gradingService.calculate(assignment.gradingConfig, {
+      plagiarismScore: plagiarismMatches.length ? Math.max(...plagiarismMatches.map(m => m.similarity)) : 0,
+      structureResult,
+      completenessResult,
+      grammarResult,
+    });
+
+    // 7. Save report
+    const report = await reportService.create(submission, structureResult, plagiarismMatches, grammarResult, completenessResult, grade);
 
     await submission.update({ status: 'checked' });
     results.push({ submissionId: submission.id, status: 'checked', report });

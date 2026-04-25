@@ -35,6 +35,26 @@ export default function ReportPage() {
       </div>
 
       <div className="flex flex-col gap-4">
+        {/* Grade */}
+        {report.grade && (
+          <Card>
+            <CardHeader><CardTitle>Оцінка</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold mb-3">{report.grade.total} / {report.grade.maxTotal}</p>
+              <div className="flex flex-col gap-1 text-sm">
+                {Object.entries(report.grade.breakdown).map(([key, val]) => {
+                  const labels = { plagiarism: 'Запозичення', structure: 'Структура', completeness: 'Повнота теми', grammar: 'Граматика' };
+                  return (
+                    <div key={key} className="flex justify-between">
+                      <span className="text-muted-foreground">{labels[key] || key}</span>
+                      <span className="font-medium">{val.score} / {val.max}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* Plagiarism */}
         <Card>
           <CardHeader><CardTitle>Запозичення</CardTitle></CardHeader>

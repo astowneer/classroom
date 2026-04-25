@@ -5,6 +5,7 @@ import { Badge, Spinner } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { ChevronLeft, Play, Download, Send, RefreshCw } from 'lucide-react';
 import StructureEditor from '../../components/StructureEditor';
+import GradingEditor from '../../components/GradingEditor';
 import { useDownloadPdf } from '../../hooks/useDownloadPdf';
 
 const statusLabel = s => ({
@@ -24,7 +25,7 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
       <table className="w-full text-sm">
         <thead className="bg-muted/50">
           <tr>
-            {['Студент', 'Статус', 'Запозичення', 'Структура', 'Здано', 'Повід.', 'Дії'].map(h => (
+            {['Студент', 'Статус', 'Запозичення', 'Структура', 'Оцінка', 'Здано', 'Повід.', 'Дії'].map(h => (
               <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
             ))}
           </tr>
@@ -48,6 +49,9 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
                 {r.structurePassed == null ? '—' : r.structurePassed
                   ? <Badge variant="success">✓</Badge>
                   : <Badge variant="destructive">✗</Badge>}
+              </td>
+              <td className="px-4 py-3 font-medium">
+                {r.grade ? `${r.grade.total}/${r.grade.maxTotal}` : '—'}
               </td>
               <td className="px-4 py-3 text-muted-foreground text-xs">
                 {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('uk-UA') : '—'}
@@ -99,6 +103,7 @@ export default function AssignmentDetailPage() {
   const [notifyId, setNotifyId] = useState(null);
   const [message, setMessage] = useState('');
   const [showStructure, setShowStructure] = useState(false);
+  const [showGrading, setShowGrading] = useState(false);
   const [tab, setTab] = useState('results');
   const downloadPdf = useDownloadPdf();
 
@@ -145,14 +150,24 @@ export default function AssignmentDetailPage() {
         <Button size="sm" variant="outline" onClick={() => setShowStructure(s => !s)}>
           {showStructure ? 'Сховати структуру' : 'Налаштувати структуру'}
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setShowGrading(s => !s)}>
+          {showGrading ? 'Сховати оцінювання' : 'Налаштувати оцінювання'}
+        </Button>
       </div>
 
       {showStructure && (
-        <div className="mb-6">
+        <div className="mb-4">
           <StructureEditor assignmentId={assignmentId} initial={assignment?.structureRequirements || []}
             initialMinLength={assignment?.minTextLength ?? 100}
             initialDescription={assignment?.description || ''}
             onSave={() => setShowStructure(false)} />
+        </div>
+      )}
+
+      {showGrading && (
+        <div className="mb-4">
+          <GradingEditor assignmentId={assignmentId} initial={assignment?.gradingConfig}
+            onSave={() => setShowGrading(false)} />
         </div>
       )}
 

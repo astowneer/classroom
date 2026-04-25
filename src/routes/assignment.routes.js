@@ -142,6 +142,7 @@ router.post('/sync/:courseId', authorize('teacher'), assignmentController.syncFr
 router.put('/:id/structure', authorize('teacher'), assignmentController.updateStructureRequirements);
 router.put('/:id/description', authorize('teacher'), assignmentController.updateDescription);
 router.put('/:id/settings', authorize('teacher'), assignmentController.updateSettings);
+router.put('/:id/grading', authorize('teacher'), assignmentController.updateGrading);
 router.post('/:id/reference', authorize('teacher'), upload.single('file'), assignmentController.uploadReference);
 
 module.exports = router;

@@ -5,6 +5,7 @@ module.exports = (sequelize) => sequelize.define('Report', {
   plagiarismScore: { type: DataTypes.FLOAT },
   structurePassed: { type: DataTypes.BOOLEAN },
   details:         { type: DataTypes.JSON },
+  grade:           { type: DataTypes.JSON },  // { total, maxTotal, breakdown }
   pdfPath:         { type: DataTypes.STRING },
   sentToStudent:   { type: DataTypes.BOOLEAN, defaultValue: false },
 });

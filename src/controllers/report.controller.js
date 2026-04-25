@@ -28,7 +28,7 @@ exports.getByAssignment = async (req, res, next) => {
       where,
       include: [
         { model: User, as: 'student', attributes: ['id', 'name', 'email'] },
-        { model: Report, as: 'report', attributes: ['plagiarismScore', 'structurePassed', 'sentToStudent'] },
+        { model: Report, as: 'report', attributes: ['plagiarismScore', 'structurePassed', 'sentToStudent', 'grade'] },
       ],
       group: ['Submission.id', 'student.id', 'report.id'],
     });
@@ -56,6 +56,7 @@ exports.getByAssignment = async (req, res, next) => {
       plagiarismScore: s.report ? (s.report.plagiarismScore * 100).toFixed(1) + '%' : null,
       structurePassed: s.report?.structurePassed ?? null,
       sentToStudent: s.report?.sentToStudent ?? false,
+      grade: s.report?.grade ?? null,
       unreadMessages: unreadMap[s.id] || 0,
     }));
 

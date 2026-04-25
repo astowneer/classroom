@@ -8,4 +8,6 @@ module.exports = (sequelize) => sequelize.define('Assignment', {
   courseId:              { type: DataTypes.INTEGER },
   structureRequirements: { type: DataTypes.JSON, defaultValue: [] },
   minTextLength:         { type: DataTypes.INTEGER, defaultValue: 100 },
+  // Grading config: { plagiarism: {max, weight}, structure: {max, weight}, completeness: {max, weight}, grammar: {max, weight} }
+  gradingConfig:         { type: DataTypes.JSON, defaultValue: null },
 });

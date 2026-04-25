@@ -6,6 +6,7 @@ router.use(authenticate);
 
 router.get('/', assignmentController.list);
 router.get('/:id', assignmentController.get);
+router.post('/sync/:courseId', authorize('teacher'), assignmentController.syncFromClassroom);
 router.put('/:id/structure', authorize('teacher'), assignmentController.updateStructureRequirements);
 
 module.exports = router;

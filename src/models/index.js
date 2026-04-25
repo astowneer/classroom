@@ -19,21 +19,22 @@ const PlagiarismResult = require('./plagiarismResult.model')(sequelize);
 const Report = require('./report.model')(sequelize);
 
 // Associations
-User.hasMany(Course, { foreignKey: 'teacherId' });
-Course.belongsTo(User, { foreignKey: 'teacherId' });
+User.hasMany(Course, { foreignKey: 'teacherId', as: 'taughtCourses' });
+Course.belongsTo(User, { foreignKey: 'teacherId', as: 'teacher' });
 
-Course.hasMany(Assignment, { foreignKey: 'courseId' });
-Assignment.belongsTo(Course, { foreignKey: 'courseId' });
+Course.hasMany(Assignment, { foreignKey: 'courseId', as: 'assignments' });
+Assignment.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
 
-Assignment.hasMany(Submission, { foreignKey: 'assignmentId' });
-Submission.belongsTo(Assignment, { foreignKey: 'assignmentId' });
+Assignment.hasMany(Submission, { foreignKey: 'assignmentId', as: 'submissions' });
+Submission.belongsTo(Assignment, { foreignKey: 'assignmentId', as: 'assignment' });
 
-User.hasMany(Submission, { foreignKey: 'studentId' });
-Submission.belongsTo(User, { foreignKey: 'studentId' });
+User.hasMany(Submission, { foreignKey: 'studentId', as: 'submissions' });
+Submission.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
 
-Submission.hasOne(Report, { foreignKey: 'submissionId' });
-Report.belongsTo(Submission, { foreignKey: 'submissionId' });
+Submission.hasOne(Report, { foreignKey: 'submissionId', as: 'report' });
+Report.belongsTo(Submission, { foreignKey: 'submissionId', as: 'submission' });
 
-Submission.hasMany(PlagiarismResult, { foreignKey: 'sourceSubmissionId' });
+Submission.hasMany(PlagiarismResult, { foreignKey: 'sourceSubmissionId', as: 'plagiarismAsSource' });
+Submission.hasMany(PlagiarismResult, { foreignKey: 'targetSubmissionId', as: 'plagiarismAsTarget' });
 
 module.exports = { sequelize, User, Course, Assignment, Submission, PlagiarismResult, Report };

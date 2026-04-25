@@ -7,6 +7,8 @@ import { ChevronLeft, Play, Download, Send, RefreshCw } from 'lucide-react';
 
 import { useDownloadPdf } from '../../hooks/useDownloadPdf';
 
+import StructureEditor from '../../components/StructureEditor';
+
 const statusLabel = s => ({
   pending: 'Очікує', text_extracted: 'Текст витягнуто', checked: 'Перевірено',
   failed: 'Помилка', resubmit_review: 'На розгляді', resubmit_accepted: 'Прийнято',
@@ -28,6 +30,7 @@ export default function AssignmentDetailPage() {
   const [syncing, setSyncing] = useState(false);
   const [notifyId, setNotifyId] = useState(null);
   const [message, setMessage] = useState('');
+  const [showStructure, setShowStructure] = useState(false);
   const downloadPdf = useDownloadPdf();
 
   const load = async () => {
@@ -84,7 +87,20 @@ export default function AssignmentDetailPage() {
         <Button size="sm" onClick={runCheck} disabled={checking}>
           <Play className={`h-4 w-4 mr-2 ${checking ? 'animate-spin' : ''}`} />Запустити перевірку
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setShowStructure(s => !s)}>
+          {showStructure ? 'Сховати структуру' : 'Налаштувати структуру'}
+        </Button>
       </div>
+
+      {showStructure && (
+        <div className="mb-6">
+          <StructureEditor
+            assignmentId={assignmentId}
+            initial={assignment?.structureRequirements || []}
+            onSave={() => setShowStructure(false)}
+          />
+        </div>
+      )}
 
       {results.length === 0 ? (
         <p className="text-muted-foreground">Робіт не знайдено.</p>

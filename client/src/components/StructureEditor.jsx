@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import api from '../lib/api';
@@ -17,6 +17,37 @@ export default function StructureEditor({ assignmentId, initial = [], initialMin
   const [minTextLength, setMinTextLength] = useState(initialMinLength);
   const [description, setDescription] = useState(initialDescription);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [referenceResult, setReferenceResult] = useState(null);
+  const fileRef = useRef();
+
+  const uploadReference = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const form = new FormData();
+    form.append('file', file);
+    // Send current sections so backend can find them in etalon text
+    const currentSections = sections
+      .filter(s => s.name.trim())
+      .map(s => ({
+        name: s.name.trim(),
+        aliases: s.aliases ? s.aliases.split(',').map(a => a.trim()).filter(Boolean) : [],
+        required: s.required,
+        forbidden: s.forbidden,
+      }));
+    form.append('sections', JSON.stringify(currentSections));
+    const res = await api.post(`/assignments/${assignmentId}/reference`, form);
+    const { minTextLength: newMin, updatedSections, totalChars } = res.data;
+    setMinTextLength(newMin);
+    setSections(updatedSections.map(s =>
+      typeof s === 'object'
+        ? { ...s, aliases: (s.aliases || []).join(', '), minWords: s.minWords || '' }
+        : { name: s, aliases: '', required: true, forbidden: false, minWords: '' }
+    ));
+    setReferenceResult({ totalChars, minTextLength: newMin });
+    setUploading(false);
+  };
 
   const update = (i, field, value) =>
     setSections(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: value } : s));
@@ -46,6 +77,23 @@ export default function StructureEditor({ assignmentId, initial = [], initialMin
         <CardTitle className="text-base">Вимоги до структури</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {/* Reference upload */}
+        <div className="flex flex-col gap-2 pb-3 border-b">
+          <div className="flex items-center gap-3">
+            <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={uploadReference} />
+            <Button size="sm" variant="outline" onClick={() => fileRef.current.click()} disabled={uploading}>
+              <Upload className="h-4 w-4 mr-2" />{uploading ? 'Аналіз еталону...' : 'Завантажити еталонну роботу'}
+            </Button>
+            {referenceResult && (
+              <span className="text-xs text-green-700">
+                ✓ Еталон: {referenceResult.totalChars} символів → мінімум {referenceResult.minTextLength} (80%)
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Спочатку додайте розділи нижче, потім завантажте еталон — система автоматично порахує мінімальний обсяг для кожного розділу.
+          </p>
+        </div>
         {/* General settings */}
         <div className="flex gap-4 pb-3 border-b">
           <label className="flex flex-col gap-1 text-xs">

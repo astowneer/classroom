@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const assignmentController = require('../controllers/assignment.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
+const upload = require('../middleware/upload.middleware');
 
 /**
  * @swagger
@@ -141,5 +142,6 @@ router.post('/sync/:courseId', authorize('teacher'), assignmentController.syncFr
 router.put('/:id/structure', authorize('teacher'), assignmentController.updateStructureRequirements);
 router.put('/:id/description', authorize('teacher'), assignmentController.updateDescription);
 router.put('/:id/settings', authorize('teacher'), assignmentController.updateSettings);
+router.post('/:id/reference', authorize('teacher'), upload.single('file'), assignmentController.uploadReference);
 
 module.exports = router;

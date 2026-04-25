@@ -55,3 +55,25 @@ exports.updateSettings = async (req, res, next) => {
     res.json(assignment);
   } catch (err) { next(err); }
 };
+
+exports.uploadReference = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'PDF file required' });
+    const assignment = await Assignment.findByPk(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+
+    // Use sections from request body if provided (current UI state), else fall back to DB
+    let sections = assignment.structureRequirements || [];
+    if (req.body.sections) {
+      try { sections = JSON.parse(req.body.sections); } catch {}
+    }
+
+    const referenceService = require('../services/reference.service');
+    const { minTextLength, updatedSections, referenceText, totalChars } =
+      await referenceService.analyze(req.file.path, sections);
+
+    await assignment.update({ minTextLength, structureRequirements: updatedSections, referenceText });
+
+    res.json({ minTextLength, totalChars, updatedSections });
+  } catch (err) { next(err); }
+};

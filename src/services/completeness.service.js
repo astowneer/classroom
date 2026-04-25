@@ -2,7 +2,6 @@ const { pipeline } = require('@xenova/transformers');
 
 let extractor = null;
 
-// Lazy-load model on first use (downloads ~90MB once, cached locally)
 async function getExtractor() {
   if (!extractor) {
     extractor = await pipeline(
@@ -23,36 +22,53 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-async function embed(text, extractor) {
-  // Truncate to 512 tokens worth of text (~2000 chars)
-  const truncated = text.slice(0, 2000);
-  const output = await extractor(truncated, { pooling: 'mean', normalize: true });
-  return Array.from(output.data);
+// Split text into overlapping chunks of ~1500 chars
+function chunkText(text, size = 1500, overlap = 200) {
+  const chunks = [];
+  let i = 0;
+  while (i < text.length) {
+    chunks.push(text.slice(i, i + size));
+    i += size - overlap;
+  }
+  return chunks;
+}
+
+// Embed text as mean of all chunk embeddings
+async function embedText(text, ext) {
+  const chunks = chunkText(text.trim());
+  const vecs = await Promise.all(
+    chunks.map(chunk => ext(chunk, { pooling: 'mean', normalize: true }).then(o => Array.from(o.data)))
+  );
+  // Average all chunk vectors
+  const dim = vecs[0].length;
+  const mean = new Array(dim).fill(0);
+  for (const v of vecs) for (let i = 0; i < dim; i++) mean[i] += v[i] / vecs.length;
+  // Normalize
+  const norm = Math.sqrt(mean.reduce((s, x) => s + x * x, 0));
+  return mean.map(x => x / norm);
 }
 
 /**
- * Check how well the submission covers the assignment topic.
- * @param {string} submissionText - extracted text from student work
- * @param {string} assignmentDescription - assignment title + description
- * @returns {{ score: number, label: string }}
+ * Compare submission text against reference text (etalon or description).
+ * Using chunked embeddings allows comparing full documents, not just first 2000 chars.
  */
-exports.check = async (submissionText, assignmentDescription) => {
-  if (!assignmentDescription || !submissionText) {
+exports.check = async (submissionText, referenceText) => {
+  if (!referenceText || !submissionText) {
     return { score: null, label: 'Недостатньо даних для перевірки' };
   }
 
   const ext = await getExtractor();
-  const [submissionVec, assignmentVec] = await Promise.all([
-    embed(submissionText, ext),
-    embed(assignmentDescription, ext),
+  const [submissionVec, referenceVec] = await Promise.all([
+    embedText(submissionText, ext),
+    embedText(referenceText, ext),
   ]);
 
-  const score = cosineSimilarity(submissionVec, assignmentVec);
+  const score = cosineSimilarity(submissionVec, referenceVec);
 
   let label;
-  if (score >= 0.7)      label = 'Тема розкрита повністю';
-  else if (score >= 0.5) label = 'Тема розкрита частково';
-  else                   label = 'Тема не розкрита';
+  if (score >= 0.75)     label = 'Тема розкрита повністю';
+  else if (score >= 0.55) label = 'Тема розкрита частково';
+  else                    label = 'Тема не розкрита';
 
   return { score: parseFloat(score.toFixed(3)), label };
 };

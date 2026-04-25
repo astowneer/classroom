@@ -67,11 +67,11 @@ exports.runAll = async (assignmentId, teacher) => {
       console.warn(`[Grammar] LanguageTool unavailable for submission ${submission.id}`);
     }
 
-    // 5. Completeness check via semantic similarity
+    // 5. Completeness check — use referenceText (etalon) if available, else description, else title
     let completenessResult = null;
     try {
-      const assignmentContext = [assignment.title, assignment.description].filter(Boolean).join('\n');
-      completenessResult = await completenessService.check(submission.extractedText, assignmentContext);
+      const referenceText = assignment.referenceText || assignment.description || assignment.title;
+      completenessResult = await completenessService.check(submission.extractedText, referenceText);
     } catch (err) {
       console.warn(`[Completeness] Failed for submission ${submission.id}:`, err.message);
     }

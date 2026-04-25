@@ -1,11 +1,11 @@
-const { Submission, Assignment } = require('../models');
+const { Submission, Assignment, User } = require('../models');
 const pdfService = require('./pdf.service');
 const plagiarismService = require('./plagiarism.service');
 const structureService = require('./structure.service');
 const reportService = require('./report.service');
 const notificationService = require('./notification.service');
 
-exports.runAll = async (assignmentId) => {
+exports.runAll = async (assignmentId, teacher) => {
   const assignment = await Assignment.findByPk(assignmentId);
   const submissions = await Submission.findAll({
     where: { assignmentId },
@@ -15,15 +15,18 @@ exports.runAll = async (assignmentId) => {
   const results = [];
 
   for (const submission of submissions) {
-    // 1. Extract text
+    // 1. Extract text from PDF via Google Drive
     if (!submission.extractedText && submission.fileUrl) {
       try {
-        const text = await pdfService.extractText(submission.fileUrl);
+        const text = await pdfService.extractText(teacher, submission.fileUrl);
         await submission.update({ extractedText: text, status: 'text_extracted' });
-      } catch {
+      } catch (err) {
         await submission.update({ status: 'failed' });
-        await notificationService.notifyStudent(submission.id, 'Не вдалося отримати текст з вашої роботи. Будь ласка, перездайте.');
-        results.push({ submissionId: submission.id, status: 'failed' });
+        await notificationService.notifyStudent(
+          submission.id,
+          'Не вдалося отримати текст з вашої роботи. Будь ласка, перездайте у форматі PDF.'
+        );
+        results.push({ submissionId: submission.id, status: 'failed', error: err.message });
         continue;
       }
     }
@@ -35,11 +38,13 @@ exports.runAll = async (assignmentId) => {
     );
     await submission.update({ structureResult });
 
-    // 3. Plagiarism check (compare against earlier submissions that were already checked)
-    const earlier = submissions.filter(s => s.submittedAt < submission.submittedAt && s.extractedText);
+    // 3. Plagiarism — compare against earlier submissions
+    const earlier = submissions.filter(
+      s => s.submittedAt < submission.submittedAt && s.extractedText
+    );
     const plagiarismMatches = await plagiarismService.compare(submission, earlier);
 
-    // 4. Generate report
+    // 4. Save report
     const report = await reportService.create(submission, structureResult, plagiarismMatches);
 
     await submission.update({ status: 'checked' });

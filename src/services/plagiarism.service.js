@@ -1,51 +1,81 @@
 const { PlagiarismResult } = require('../models');
 
-// Splits text into sentences
-function tokenize(text) {
-  return text.match(/[^.!?\n]+[.!?\n]*/g) || [];
+const SHINGLE_SIZE = 6;   // words per shingle
+const THRESHOLD = 0.25;   // min Jaccard similarity to flag plagiarism
+
+function tokenizeWords(text) {
+  return text.toLowerCase().replace(/[^\wа-яіїєґ\s]/gi, '').split(/\s+/).filter(Boolean);
 }
 
-// Returns similarity ratio between two strings (Jaccard on words)
-function similarity(a, b) {
-  const setA = new Set(a.toLowerCase().split(/\s+/));
-  const setB = new Set(b.toLowerCase().split(/\s+/));
-  const intersection = [...setA].filter(w => setB.has(w)).length;
+function buildShingles(words) {
+  const shingles = new Set();
+  for (let i = 0; i <= words.length - SHINGLE_SIZE; i++) {
+    shingles.add(words.slice(i, i + SHINGLE_SIZE).join(' '));
+  }
+  return shingles;
+}
+
+function jaccardSimilarity(setA, setB) {
+  if (!setA.size || !setB.size) return 0;
+  const intersection = [...setA].filter(s => setB.has(s)).length;
   return intersection / (setA.size + setB.size - intersection);
 }
 
-const THRESHOLD = 0.7;
-
-/**
- * Compare targetSubmission against all earlier submissions (sorted by submittedAt).
- * Earlier submissions are considered originals.
- */
-exports.compare = async (targetSubmission, earlierSubmissions) => {
-  const targetSentences = tokenize(targetSubmission.extractedText);
+// Find matching sentences between two texts
+function findMatchingSentences(targetText, sourceText) {
+  const targetSentences = targetText.match(/[^.!?\n]{20,}[.!?\n]*/g) || [];
+  const sourceSentences = sourceText.match(/[^.!?\n]{20,}[.!?\n]*/g) || [];
   const matches = [];
 
-  for (const source of earlierSubmissions) {
-    const sourceSentences = tokenize(source.extractedText);
-    const pairMatches = [];
+  for (const ts of targetSentences) {
+    const tsWords = tokenizeWords(ts);
+    if (tsWords.length < 5) continue;
 
-    for (const ts of targetSentences) {
-      for (const ss of sourceSentences) {
-        if (similarity(ts, ss) >= THRESHOLD) {
-          pairMatches.push({ targetText: ts.trim(), sourceText: ss.trim() });
-        }
+    for (const ss of sourceSentences) {
+      const ssWords = tokenizeWords(ss);
+      if (ssWords.length < 5) continue;
+
+      const tsShingles = buildShingles(tsWords);
+      const ssShingles = buildShingles(ssWords);
+      const sim = jaccardSimilarity(tsShingles, ssShingles);
+
+      if (sim >= 0.6) {
+        matches.push({ targetText: ts.trim(), sourceText: ss.trim(), similarity: sim });
+        break; // one match per target sentence is enough
       }
-    }
-
-    if (pairMatches.length > 0) {
-      const score = pairMatches.length / targetSentences.length;
-      await PlagiarismResult.create({
-        sourceSubmissionId: source.id,
-        targetSubmissionId: targetSubmission.id,
-        similarity: score,
-        matches: pairMatches,
-      });
-      matches.push({ sourceSubmissionId: source.id, similarity: score, matches: pairMatches });
     }
   }
 
   return matches;
+}
+
+/**
+ * Compare targetSubmission against all earlier (original) submissions.
+ * Returns array of matches per source submission.
+ */
+exports.compare = async (targetSubmission, earlierSubmissions) => {
+  const targetWords = tokenizeWords(targetSubmission.extractedText);
+  const targetShingles = buildShingles(targetWords);
+  const results = [];
+
+  for (const source of earlierSubmissions) {
+    const sourceWords = tokenizeWords(source.extractedText);
+    const sourceShingles = buildShingles(sourceWords);
+
+    const similarity = jaccardSimilarity(targetShingles, sourceShingles);
+    if (similarity < THRESHOLD) continue;
+
+    const matches = findMatchingSentences(targetSubmission.extractedText, source.extractedText);
+
+    await PlagiarismResult.upsert({
+      sourceSubmissionId: source.id,
+      targetSubmissionId: targetSubmission.id,
+      similarity,
+      matches,
+    });
+
+    results.push({ sourceSubmissionId: source.id, similarity, matchCount: matches.length, matches });
+  }
+
+  return results;
 };

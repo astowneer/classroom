@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const submissionController = require('../controllers/submission.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
+const upload = require('../middleware/upload.middleware');
 
 /**
  * @swagger
@@ -15,7 +16,7 @@ router.use(authenticate);
  * @swagger
  * /submissions:
  *   get:
- *     summary: Список робіт
+ *     summary: Список робіт (студент бачить тільки свої)
  *     tags: [Submissions]
  *     parameters:
  *       - in: query
@@ -60,7 +61,7 @@ router.post('/sync/:assignmentId', authorize('teacher'), submissionController.sy
  * @swagger
  * /submissions/check/{assignmentId}:
  *   post:
- *     summary: Запустити перевірку всіх робіт завдання (витяг тексту, запозичення, структура)
+ *     summary: Запустити перевірку всіх робіт завдання
  *     tags: [Submissions]
  *     parameters:
  *       - in: path
@@ -71,19 +72,6 @@ router.post('/sync/:assignmentId', authorize('teacher'), submissionController.sy
  *     responses:
  *       200:
  *         description: Результати перевірки
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   submissionId:
- *                     type: integer
- *                   status:
- *                     type: string
- *                   report:
- *                     $ref: '#/components/schemas/Report'
  */
 router.post('/check/:assignmentId', authorize('teacher'), submissionController.runChecks);
 
@@ -99,7 +87,6 @@ router.post('/check/:assignmentId', authorize('teacher'), submissionController.r
  *         required: true
  *         schema:
  *           type: integer
- *         description: submission id
  *     requestBody:
  *       required: true
  *       content:
@@ -110,7 +97,6 @@ router.post('/check/:assignmentId', authorize('teacher'), submissionController.r
  *             properties:
  *               message:
  *                 type: string
- *                 example: Ваша робота містить запозичення. Будь ласка, перездайте.
  *     responses:
  *       200:
  *         content:
@@ -122,5 +108,110 @@ router.post('/check/:assignmentId', authorize('teacher'), submissionController.r
  *                   type: boolean
  */
 router.post('/:id/notify', authorize('teacher'), submissionController.notifyStudent);
+
+/**
+ * @swagger
+ * /submissions/{id}/resubmit:
+ *   post:
+ *     summary: Студент завантажує переробленну роботу (PDF)
+ *     tags: [Submissions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Submission'
+ */
+router.post('/:id/resubmit', authorize('student'), upload.single('file'), submissionController.resubmit);
+
+/**
+ * @swagger
+ * /submissions/{id}/self-check:
+ *   post:
+ *     summary: Студент запускає самостійну перевірку завантаженої роботи
+ *     tags: [Submissions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Результат перевірки
+ */
+router.post('/:id/self-check', authorize('student'), submissionController.selfCheck);
+
+/**
+ * @swagger
+ * /submissions/{id}/submit-review:
+ *   post:
+ *     summary: Студент надсилає роботу на розгляд викладачу
+ *     tags: [Submissions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Submission'
+ */
+router.post('/:id/submit-review', authorize('student'), submissionController.submitForReview);
+
+/**
+ * @swagger
+ * /submissions/{id}/review:
+ *   post:
+ *     summary: Викладач приймає або відхиляє переробку
+ *     tags: [Submissions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [decision]
+ *             properties:
+ *               decision:
+ *                 type: string
+ *                 enum: [accept, reject]
+ *               comment:
+ *                 type: string
+ *                 example: Добре виправлено, запозичення усунуто
+ *     responses:
+ *       200:
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Submission'
+ */
+router.post('/:id/review', authorize('teacher'), submissionController.review);
 
 module.exports = router;

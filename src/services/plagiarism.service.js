@@ -73,20 +73,20 @@ function findAllOccurrences(text, sub) {
 function findMatchingSentences(textA, textB) {
   const sentA = splitSentences(textA);
   const sentB = splitSentences(textB);
-  const matchedA = new Set();
+  const matchedA = new Set(); // stores indices, not text
   const matches = [];
 
   for (const sb of sentB) {
     const sbS = buildShingles(tokenizeWords(sb));
     if (!sbS.size) continue;
-    let bestSim = 0, bestSa = null;
-    for (const sa of sentA) {
-      if (matchedA.has(sa)) continue;
+    let bestSim = 0, bestSa = null, bestIdx = -1;
+    sentA.forEach((sa, idx) => {
+      if (matchedA.has(idx)) return;
       const sim = jaccard(buildShingles(tokenizeWords(sa)), sbS);
-      if (sim > bestSim) { bestSim = sim; bestSa = sa; }
-    }
+      if (sim > bestSim) { bestSim = sim; bestSa = sa; bestIdx = idx; }
+    });
     if (bestSim >= SENT_THRESHOLD && bestSa) {
-      matchedA.add(bestSa);
+      matchedA.add(bestIdx);
       const inA = findAllOccurrences(textA, bestSa);
       const inB = findAllOccurrences(textB, sb);
       if (inA.length && inB.length)

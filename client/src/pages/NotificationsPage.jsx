@@ -5,11 +5,15 @@ import { Card, CardContent, Spinner } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Bell, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import Pagination from '../components/Pagination';
+
+const PAGE_SIZE = 7;
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -80,8 +84,9 @@ export default function NotificationsPage() {
       {notifications.length === 0 ? (
         <p className="text-muted-foreground text-sm">Сповіщень немає.</p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {notifications.map(n => (
+        <>
+          <div className="flex flex-col gap-3">
+            {notifications.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(n => (
             <Card key={n.id} className={n.read ? 'opacity-60' : 'border-primary/30'}>
               <CardContent className="pt-4 pb-3 flex items-start gap-3">
                 <Bell className={`h-4 w-4 mt-0.5 flex-shrink-0 ${n.read ? 'text-muted-foreground' : 'text-primary'}`} />
@@ -103,8 +108,10 @@ export default function NotificationsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+          <Pagination page={page} total={notifications.length} pageSize={PAGE_SIZE} onChange={setPage} />
+        </>
       )}
     </div>
   );

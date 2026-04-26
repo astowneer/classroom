@@ -144,6 +144,7 @@ router.put('/:id/description', authorize('teacher'), assignmentController.update
 router.put('/:id/settings', authorize('teacher'), assignmentController.updateSettings);
 router.put('/:id/grading', authorize('teacher'), assignmentController.updateGrading);
 router.put('/:id/stop-phrases', authorize('teacher'), assignmentController.updateStopPhrases);
+router.put('/:id/extract-fields', authorize('teacher'), assignmentController.updateExtractFields);
 router.post('/:id/reference', authorize('teacher'), upload.single('file'), assignmentController.uploadReference);
 
 module.exports = router;

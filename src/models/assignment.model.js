@@ -12,4 +12,6 @@ module.exports = (sequelize) => sequelize.define('Assignment', {
   gradingConfig:         { type: DataTypes.JSON, defaultValue: null },
   // Array of phrases to ignore in plagiarism check (e.g. title page boilerplate)
   stopPhrases:           { type: DataTypes.JSON, defaultValue: [] },
+  // Fields to extract from submission text: [{label: "Варіант", pattern: "Варіант\\s*(\\d+)"}]
+  extractFields:         { type: DataTypes.JSON, defaultValue: [] },
 });

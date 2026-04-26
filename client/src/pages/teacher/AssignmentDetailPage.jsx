@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { ChevronLeft, Play, Download, Send, RefreshCw } from 'lucide-react';
 import StructureEditor from '../../components/StructureEditor';
 import GradingEditor from '../../components/GradingEditor';
+import ExtractFieldsEditor from '../../components/ExtractFieldsEditor';
 import Pagination from '../../components/Pagination';
 
 const PAGE_SIZE = 5;
@@ -189,6 +190,7 @@ export default function AssignmentDetailPage() {
   const [message, setMessage] = useState('');
   const [showStructure, setShowStructure] = useState(false);
   const [showGrading, setShowGrading] = useState(false);
+  const [showExtract, setShowExtract] = useState(false);
   const [tab, setTab] = useState('results');
   const [selected, setSelected] = useState(new Set());
   const downloadPdf = useDownloadPdf();
@@ -252,6 +254,9 @@ export default function AssignmentDetailPage() {
         <Button size="sm" variant="outline" onClick={() => setShowGrading(s => !s)}>
           {showGrading ? 'Сховати оцінювання' : 'Налаштувати оцінювання'}
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setShowExtract(s => !s)}>
+          {showExtract ? 'Сховати поля' : 'Поля витягування'}
+        </Button>
       </div>
 
       {showStructure && (
@@ -268,6 +273,13 @@ export default function AssignmentDetailPage() {
         <div className="mb-4">
           <GradingEditor assignmentId={assignmentId} initial={assignment?.gradingConfig}
             onSave={() => setShowGrading(false)} />
+        </div>
+      )}
+
+      {showExtract && (
+        <div className="mb-4">
+          <ExtractFieldsEditor assignmentId={assignmentId} initial={assignment?.extractFields || []}
+            onSave={() => setShowExtract(false)} />
         </div>
       )}
 

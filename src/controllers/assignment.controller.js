@@ -74,6 +74,15 @@ exports.updateStopPhrases = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.updateExtractFields = async (req, res, next) => {
+  try {
+    const assignment = await Assignment.findByPk(req.params.id);
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    await assignment.update({ extractFields: req.body.fields || [] });
+    res.json(assignment);
+  } catch (err) { next(err); }
+};
+
 exports.uploadReference = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'PDF file required' });

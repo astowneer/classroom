@@ -10,7 +10,7 @@ if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
 // Palette of highlight colors per source student
 const COLORS = ['#FFD700', '#90EE90', '#FFB6C1', '#ADD8E6', '#FFA07A', '#DDA0DD', '#98FB98'];
 
-exports.create = async (submission, structureResult, plagiarismMatches, grammarResult = null, completenessResult = null, grade = null) => {
+exports.create = async (submission, structureResult, plagiarismMatches, grammarResult = null, completenessResult = null, grade = null, extractedFields = null) => {
   const plagiarismScore = plagiarismMatches.length
     ? Math.max(...plagiarismMatches.map(m => m.similarity))
     : 0;
@@ -21,6 +21,7 @@ exports.create = async (submission, structureResult, plagiarismMatches, grammarR
     structurePassed: structureResult.passed,
     details: { structureResult, plagiarismMatches, grammarResult, completenessResult },
     grade,
+    extractedFields,
   });
 
   return report;

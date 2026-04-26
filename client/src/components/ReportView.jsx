@@ -153,6 +153,9 @@ export default function ReportView({ report, submission, student, assignment }) 
           <div><span className="text-gray-500">Завдання:</span> {assignment?.title}</div>
           <div><span className="text-gray-500">Дата здачі:</span> {submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString('uk-UA') : '—'}</div>
           <div><span className="text-gray-500">Статус:</span> {submission?.status}</div>
+          {report.extractedFields && Object.entries(report.extractedFields).map(([k, v]) => v && (
+            <div key={k}><span className="text-gray-500">{k}:</span> <b>{v}</b></div>
+          ))}
         </div>
 
         {/* Grade */}

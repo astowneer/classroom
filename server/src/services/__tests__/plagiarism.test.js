@@ -1,9 +1,9 @@
 // Mock DB models — compareTexts doesn't use them but the module requires them
-jest.mock('../src/models', () => ({
+jest.mock('../../models', () => ({
   PlagiarismResult: { upsert: jest.fn() },
 }));
 
-const { compareTexts } = require('../src/services/plagiarism.service');
+const { compareTexts } = require('../plagiarism.service');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

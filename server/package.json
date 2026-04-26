@@ -5,7 +5,13 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest --testPathPattern=tests/"
+    "test": "jest",
+    "test:services": "jest src/services/__tests__",
+    "test:controllers": "jest src/controllers/__tests__",
+    "test:utils": "jest src/utils/__tests__"
+  },
+  "jest": {
+    "testMatch": ["**/__tests__/**/*.test.js"]
   },
   "dependencies": {
     "@xenova/transformers": "^2.17.2",

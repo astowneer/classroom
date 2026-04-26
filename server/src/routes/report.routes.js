@@ -47,6 +47,28 @@ router.use(authenticate);
  *                     type: boolean
  */
 router.get('/assignment/:assignmentId', reportController.getByAssignment);
+
+/**
+ * @swagger
+ * /reports/assignment/{assignmentId}/export:
+ *   get:
+ *     summary: Завантажити результати перевірки у форматі Excel
+ *     tags: [Reports]
+ *     parameters:
+ *       - in: path
+ *         name: assignmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Excel файл з результатами
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ */
 router.get('/assignment/:assignmentId/export', reportController.exportExcel);
 
 /**

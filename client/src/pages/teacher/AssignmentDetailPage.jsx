@@ -3,14 +3,13 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../lib/api';
 import { Badge, Spinner } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { ChevronLeft, Play, Download, Send, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Play, Download, RefreshCw } from 'lucide-react';
 import StructureEditor from '../../components/StructureEditor';
 import GradingEditor from '../../components/GradingEditor';
 import ExtractFieldsEditor from '../../components/ExtractFieldsEditor';
 import Pagination from '../../components/Pagination';
 
 const PAGE_SIZE = 5;
-import { useDownloadPdf } from '../../hooks/useDownloadPdf';
 
 const statusLabel = s => ({
   pending: 'Очікує', text_extracted: 'Текст витягнуто', checked: 'Перевірено',
@@ -23,7 +22,7 @@ const statusVariant = s => ({
   resubmit_accepted: 'success', resubmit_rejected: 'destructive',
 }[s] || 'secondary');
 
-function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, message, setMessage, notify, review, selected, setSelected }) {
+function ResultsTable({ results, navigate, downloadOriginal, selected, setSelected }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const page = parseInt(searchParams.get('page') || '1');
@@ -146,27 +145,12 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
                   : <span className="text-muted-foreground text-xs">—</span>}
               </td>
               <td className="px-4 py-3">
-                <div className="flex gap-1 flex-wrap">
+                <div className="flex gap-1">
                   <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/reports/${r.submissionId}`)}>Звіт</Button>
-                  <Button size="sm" variant="outline" onClick={() => downloadPdf(r.submissionId)}><Download className="h-3 w-3" /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => setNotifyId(notifyId === r.submissionId ? null : r.submissionId)}>
-                    <Send className="h-3 w-3" />
+                  <Button size="sm" variant="outline" onClick={() => downloadOriginal(r.submissionId)}>
+                    <Download className="h-3 w-3" />
                   </Button>
-                  {r.status === 'resubmit_review' && (
-                    <>
-                      <Button size="sm" onClick={() => review(r.submissionId, 'accept')}>✓</Button>
-                      <Button size="sm" variant="destructive" onClick={() => review(r.submissionId, 'reject')}>✗</Button>
-                    </>
-                  )}
                 </div>
-                {notifyId === r.submissionId && (
-                  <div className="mt-2 flex gap-2">
-                    <input className="border rounded px-2 py-1 text-xs flex-1"
-                      placeholder="Повідомлення..." value={message}
-                      onChange={e => setMessage(e.target.value)} />
-                    <Button size="sm" onClick={() => notify(r.submissionId)}>Надіслати</Button>
-                  </div>
-                )}
               </td>
             </tr>
           ))}
@@ -186,14 +170,18 @@ export default function AssignmentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [notifyId, setNotifyId] = useState(null);
-  const [message, setMessage] = useState('');
   const [showStructure, setShowStructure] = useState(false);
   const [showGrading, setShowGrading] = useState(false);
   const [showExtract, setShowExtract] = useState(false);
   const [tab, setTab] = useState('results');
   const [selected, setSelected] = useState(new Set());
-  const downloadPdf = useDownloadPdf();
+  const downloadOriginal = async (submissionId) => {
+    const res = await api.get(`/submissions/${submissionId}/file`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `submission-${submissionId}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const load = async () => {
     const [aRes, rRes] = await Promise.all([
@@ -297,9 +285,7 @@ export default function AssignmentDetailPage() {
       {tab === 'results' && (
         normal.length === 0
           ? <p className="text-muted-foreground">Робіт не знайдено.</p>
-          : <ResultsTable results={normal} navigate={navigate} downloadPdf={downloadPdf}
-              notifyId={notifyId} setNotifyId={setNotifyId} message={message}
-              setMessage={setMessage} notify={notify} review={review}
+          : <ResultsTable results={normal} navigate={navigate} downloadOriginal={downloadOriginal}
               selected={selected} setSelected={setSelected} />
       )}
 

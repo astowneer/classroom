@@ -53,6 +53,48 @@ exports.notifyStudent = async (req, res, next) => {
 };
 
 // POST /submissions/:id/resubmit — student uploads new PDF
+exports.downloadFile = async (req, res, next) => {
+  try {
+    const submission = await Submission.findByPk(req.params.id);
+    if (!submission) return res.status(404).json({ error: 'Not found' });
+
+    // Access check
+    if (req.user.role === 'student' && submission.studentId !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const fileUrl = submission.localFilePath
+      ? null  // local file
+      : submission.fileUrl;
+
+    if (submission.localFilePath) {
+      const fs = require('fs');
+      if (!fs.existsSync(submission.localFilePath)) return res.status(404).json({ error: 'File not found' });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="submission-${submission.id}.pdf"`);
+      return fs.createReadStream(submission.localFilePath).pipe(res);
+    }
+
+    if (!fileUrl) return res.status(404).json({ error: 'No file' });
+
+    // Download from Google Drive
+    const { google } = require('googleapis');
+    const { createAuthClient } = require('../utils/googleAuth');
+    const auth = createAuthClient(req.user);
+    const drive = google.drive({ version: 'v3', auth });
+    const match = fileUrl.match(/[?&]id=([^&]+)/) || fileUrl.match(/\/d\/([^/]+)/);
+    if (!match) return res.status(400).json({ error: 'Invalid file URL' });
+
+    const driveRes = await drive.files.get(
+      { fileId: match[1], alt: 'media' },
+      { responseType: 'stream' }
+    );
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="submission-${submission.id}.pdf"`);
+    driveRes.data.pipe(res);
+  } catch (err) { next(err); }
+};
+
 exports.resubmit = async (req, res, next) => {
   try {
     const submission = await Submission.findOne({

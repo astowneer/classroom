@@ -33,6 +33,7 @@ router.use(authenticate);
  *                 $ref: '#/components/schemas/Submission'
  */
 router.get('/', submissionController.list);
+router.get('/:id/file', submissionController.downloadFile);
 
 /**
  * @swagger

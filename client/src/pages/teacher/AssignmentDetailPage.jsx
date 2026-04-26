@@ -142,8 +142,7 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
           <option value="checked">Перевірено</option>
           <option value="pending">Очікує</option>
           <option value="failed">Помилка</option>
-          <option value="resubmit_review">На розгляді</option>
-          <option value="resubmit_accepted">Прийнято</option>
+          <option value="too_large">Файл завеликий</option>
         </select>
         <select className="border rounded px-2 py-1 text-sm" value={filter.plagiarism} onChange={e => setF('plagiarism', e.target.value)}>
           <option value="">Всі запозичення</option>

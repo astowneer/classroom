@@ -114,23 +114,6 @@ export default function ReportPage() {
         assignment={submission?.assignment}
       />
 
-      {resubReport && (
-        <div className="mt-6 print:hidden">
-          <h2 className="text-lg font-semibold mb-3 border-t pt-4">
-            Звіт переробки
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              ({resub.status === 'review' ? 'На розгляді' : resub.status === 'accepted' ? 'Прийнято' : resub.status === 'rejected' ? 'Відхилено' : resub.status})
-            </span>
-          </h2>
-          <ReportView
-            report={resubReport}
-            submission={resubSubmission}
-            student={submission?.student}
-            assignment={submission?.assignment}
-          />
-        </div>
-      )}
-
       <div className="mt-6 print:hidden">
         <Chat submissionId={parseInt(submissionId)} />
       </div>

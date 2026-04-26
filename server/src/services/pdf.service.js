@@ -2,12 +2,7 @@ const { google } = require('googleapis');
 const { createAuthClient } = require('../utils/googleAuth');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
-
-function extractFileId(fileUrl) {
-  const match = fileUrl.match(/[?&]id=([^&]+)/) || fileUrl.match(/\/d\/([^/]+)/);
-  if (!match) throw new Error(`Cannot extract file ID from URL: ${fileUrl}`);
-  return match[1];
-}
+const { extractFileId } = require('../utils/file.utils');
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
@@ -16,7 +11,6 @@ exports.extractText = async (user, fileUrl) => {
   const drive = google.drive({ version: 'v3', auth });
   const fileId = extractFileId(fileUrl);
 
-  // Check file size before downloading
   const meta = await drive.files.get({ fileId, fields: 'size' });
   const size = parseInt(meta.data.size || '0');
   if (size > MAX_FILE_SIZE) {

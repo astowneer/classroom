@@ -1,68 +1,14 @@
 const { PlagiarismResult } = require('../models');
+const {
+  normalize, tokenizeWords, buildShingles, jaccard,
+  removeStopPhrases, splitSentences,
+} = require('../utils/text.utils');
 
-const SHINGLE_SIZE = 6;
 const DOC_THRESHOLD = 0.15;
 const SENT_THRESHOLD = 0.55;
-const MIN_WORDS = 4;
-const MIN_CHARS = 20;
-const MIN_SEQ = 6; // min words in a common sequence for compareTexts
+const MIN_SEQ = 6;
 
-// ── Normalization ─────────────────────────────────────────────────────────────
-
-function normalize(text) {
-  if (!text) return '';
-  return text
-    .replace(/\u00AD/g, '')       // soft hyphens
-    .replace(/-\n\s*/g, '')       // hyphenated line breaks
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
-}
-
-const BOILERPLATE_PATTERNS = [
-  /навчальн\w+\s+рок/i,
-  /лабораторн\w+\s+(?:робот|завдан)\w*\s+№?\d+/i,
-  /варіант\s+№?\d+/i,
-];
-
-function removeBoilerplate(text) {
-  return text.split('\n').filter(line => {
-    const t = line.trim();
-    if (!t || t.split(/\s+/).length <= 2) return false;
-    return !BOILERPLATE_PATTERNS.some(p => p.test(t));
-  }).join('\n');
-}
-
-// ── Tokenization ──────────────────────────────────────────────────────────────
-
-function tokenizeWords(text) {
-  return text.toLowerCase().replace(/[^\wа-яіїєґ\s]/gi, ' ').split(/\s+/).filter(Boolean);
-}
-
-function splitSentences(text) {
-  return text
-    .split(/(?<=[.!?])\s+(?=[А-ЯІЇЄҐA-Z])|(?<=[.!?])\s*\n+/)
-    .flatMap(c => c.split(/\n{2,}/))
-    .map(s => s.trim())
-    .filter(s => s.length >= MIN_CHARS && tokenizeWords(s).length >= MIN_WORDS);
-}
-
-// ── Shingling ─────────────────────────────────────────────────────────────────
-
-function buildShingles(words) {
-  const s = new Set();
-  for (let i = 0; i <= words.length - SHINGLE_SIZE; i++)
-    s.add(words.slice(i, i + SHINGLE_SIZE).join(' '));
-  return s;
-}
-
-function jaccard(a, b) {
-  if (!a.size || !b.size) return 0;
-  const inter = [...a].filter(x => b.has(x)).length;
-  return inter / (a.size + b.size - inter);
-}
-
-// ── Sentence-level comparison (for DB plagiarism check) ───────────────────────
+// ── Sentence-level comparison ─────────────────────────────────────────────────
 
 function findAllOccurrences(text, sub) {
   const res = [];
@@ -74,7 +20,7 @@ function findAllOccurrences(text, sub) {
 function findMatchingSentences(textA, textB) {
   const sentA = splitSentences(textA);
   const sentB = splitSentences(textB);
-  const matchedA = new Set(); // stores indices, not text
+  const matchedA = new Set();
   const matches = [];
 
   for (const sb of sentB) {
@@ -97,16 +43,28 @@ function findMatchingSentences(textA, textB) {
   return matches;
 }
 
-// ── Word-sequence comparison (for visual compare tool) ────────────────────────
+// ── Word-sequence comparison ──────────────────────────────────────────────────
 
 function findCharPos(originalText, words, wordStart, wordCount) {
-  // Build regex that matches the words with any non-word chars between them
   const escaped = words.slice(wordStart, wordStart + wordCount)
     .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const pattern = new RegExp(escaped.join('[^\\wа-яіїєґ]*'), 'i');
   const match = pattern.exec(originalText);
   if (!match) return null;
   return { start: match.index, end: match.index + match[0].length };
+}
+
+function findCharPosInOriginal(originalText, normalizedPhrase) {
+  if (!normalizedPhrase) return null;
+  const words = normalizedPhrase.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return null;
+  const pattern = new RegExp(
+    words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^\\wа-яіїєґ]*'),
+    'i'
+  );
+  const m = pattern.exec(originalText);
+  if (!m) return null;
+  return { start: m.index, end: m.index + m[0].length };
 }
 
 function findCommonSequences(textA, textB, wordsA, wordsB) {
@@ -155,19 +113,6 @@ function findCommonSequences(textA, textB, wordsA, wordsB) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-// ── Stop phrases ──────────────────────────────────────────────────────────────
-
-function removeStopPhrases(text, stopPhrases) {
-  if (!stopPhrases?.length) return text;
-  let result = text;
-  for (const phrase of stopPhrases) {
-    if (!phrase.trim()) continue;
-    const escaped = phrase.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    result = result.replace(new RegExp(escaped, 'gi'), ' ');
-  }
-  return result;
-}
-
 exports.compareTexts = (textA, textB) => {
   const wA = tokenizeWords(normalize(textA));
   const wB = tokenizeWords(normalize(textB));
@@ -197,7 +142,6 @@ exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = [],
       ? findCommonSequences(sourceText, targetText, sourceWords, targetWords)
       : [];
 
-    // Re-map inB positions from normalized text to original text
     const mappedMatches = matches.map(m => {
       const inBOriginal = findCharPosInOriginal(originalTarget, m.textB);
       return { ...m, inB: inBOriginal || m.inB, allInB: inBOriginal ? [inBOriginal] : m.allInB };
@@ -227,17 +171,3 @@ exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = [],
   }
   return results;
 };
-
-// Find position of normalized phrase in original (non-stop-phrase-removed) text
-function findCharPosInOriginal(originalText, normalizedPhrase) {
-  if (!normalizedPhrase) return null;
-  const words = normalizedPhrase.split(/\s+/).filter(Boolean);
-  if (words.length < 2) return null;
-  const pattern = new RegExp(
-    words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^\\wа-яіїєґ]*'),
-    'i'
-  );
-  const m = pattern.exec(originalText);
-  if (!m) return null;
-  return { start: m.index, end: m.index + m[0].length };
-}

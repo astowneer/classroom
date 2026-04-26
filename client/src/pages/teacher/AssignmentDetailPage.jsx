@@ -31,8 +31,16 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
     plagiarism: searchParams.get('plagiarism') || '',
     grade:     searchParams.get('grade') || '',
   };
+  const sortKey = searchParams.get('sort') || null;
+  const sortDir = searchParams.get('dir') || 'desc';
 
   const setPage = (p) => setSearchParams(prev => { prev.set('page', p); return prev; }, { replace: true });
+  const toggleSort = (key) => setSearchParams(prev => {
+    const cur = prev.get('sort');
+    const dir = cur === key && prev.get('dir') === 'desc' ? 'asc' : 'desc';
+    prev.set('sort', key); prev.set('dir', dir); prev.set('page', '1');
+    return prev;
+  }, { replace: true });
   const setF = (key, val) => setSearchParams(prev => {
     val ? prev.set(key, val) : prev.delete(key);
     prev.set('page', '1');
@@ -58,7 +66,16 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
 
   const allIds = filtered.map(r => r.submissionId);
   const allChecked = allIds.length > 0 && allIds.every(id => selected.has(id));
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const sorted = sortKey ? [...filtered].sort((a, b) => {
+    let va, vb;
+    if (sortKey === 'plagiarism') { va = parseFloat(a.plagiarismScore) || 0; vb = parseFloat(b.plagiarismScore) || 0; }
+    if (sortKey === 'grade')      { va = a.grade ? a.grade.total / (a.grade.maxTotal || 1) : -1; vb = b.grade ? b.grade.total / (b.grade.maxTotal || 1) : -1; }
+    if (sortKey === 'date')       { va = new Date(a.submittedAt || 0); vb = new Date(b.submittedAt || 0); }
+    return sortDir === 'desc' ? vb - va : va - vb;
+  }) : filtered;
+
+  const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const toggleAll = () => {
     if (allChecked) setSelected(new Set());
@@ -107,8 +124,20 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
         <thead className="bg-muted/50">
           <tr>
             <th className="px-3 py-3"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
-            {['Студент', 'Статус', 'Запозичення', 'Структура', 'Оцінка', 'Здано', 'Повід.', 'Дії'].map(h => (
-              <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+            {[
+              { label: 'Студент', key: null },
+              { label: 'Статус', key: null },
+              { label: 'Запозичення', key: 'plagiarism' },
+              { label: 'Структура', key: null },
+              { label: 'Оцінка', key: 'grade' },
+              { label: 'Здано', key: 'date' },
+              { label: 'Повід.', key: null },
+              { label: 'Дії', key: null },
+            ].map(({ label, key }) => (
+              <th key={label} className={`px-4 py-3 text-left font-medium ${key ? 'cursor-pointer select-none hover:bg-muted' : ''}`}
+                onClick={() => key && toggleSort(key)}>
+                {label}
+              </th>
             ))}
           </tr>
         </thead>

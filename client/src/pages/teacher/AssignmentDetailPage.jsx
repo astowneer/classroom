@@ -22,6 +22,52 @@ const statusVariant = s => ({
   resubmit_accepted: 'success', resubmit_rejected: 'destructive',
 }[s] || 'secondary');
 
+function FailedTable({ failed, assignmentId, downloadOriginal, onRefresh }) {
+  const [page, setPage] = useState(1);
+  const [notifying, setNotifying] = useState(null);
+  const [notified, setNotified] = useState(new Set());
+  const paged = failed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const notify = async (r) => {
+    setNotifying(r.submissionId);
+    const msg = r.status === 'too_large'
+      ? 'Ваша робота не може бути перевірена: файл занадто великий. Будь ласка, стисніть PDF або перездайте меншим файлом.'
+      : 'Ваша робота не може бути перевірена: не вдалося витягти текст. PDF містить лише зображення. Будь ласка, перездайте роботу у форматі з текстовим шаром.';
+    await api.post(`/submissions/${r.submissionId}/notify`, { message: msg });
+    setNotified(prev => new Set([...prev, r.submissionId]));
+    setNotifying(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {paged.map(r => (
+        <div key={r.submissionId} className="border rounded-lg p-4 bg-destructive/5 flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm">{r.student?.name || r.student?.email || '—'}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {r.status === 'too_large'
+                ? 'Файл занадто великий — студент має стиснути PDF або перездати меншим файлом'
+                : 'Не вдалося витягти текст — робота містить лише зображення або пошкоджений PDF'}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button size="sm" variant="outline" onClick={() => downloadOriginal(r.submissionId)}
+              title="Завантажити роботу студента">
+              <Download className="h-3 w-3" />
+            </Button>
+            <Button size="sm" variant="outline"
+              disabled={notifying === r.submissionId || notified.has(r.submissionId) || r.sentToStudent}
+              onClick={() => notify(r)}>
+              {notified.has(r.submissionId) || r.sentToStudent ? 'Надіслано ✓' : notifying === r.submissionId ? '...' : 'Повідомити'}
+            </Button>
+          </div>
+        </div>
+      ))}
+      <Pagination page={page} total={failed.length} pageSize={PAGE_SIZE} onChange={setPage} />
+    </div>
+  );
+}
+
 function ResultsTable({ results, navigate, downloadOriginal, selected, setSelected }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -194,6 +240,7 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
 export default function AssignmentDetailPage() {
   const { assignmentId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [results, setResults] = useState([]);
   const [assignment, setAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -202,7 +249,8 @@ export default function AssignmentDetailPage() {
   const [showStructure, setShowStructure] = useState(false);
   const [showGrading, setShowGrading] = useState(false);
   const [showExtract, setShowExtract] = useState(false);
-  const [tab, setTab] = useState('results');
+  const tab = searchParams.get('tab') || 'results';
+  const setTab = (t) => setSearchParams(prev => { prev.set('tab', t); return prev; }, { replace: true });
   const [selected, setSelected] = useState(new Set());
   const downloadOriginal = async (submissionId) => {
     const res = await api.get(`/submissions/${submissionId}/file`, { responseType: 'blob' });
@@ -321,26 +369,7 @@ export default function AssignmentDetailPage() {
       {tab === 'failed' && (
         failed.length === 0
           ? <p className="text-muted-foreground">Проблемних робіт немає.</p>
-          : (
-            <div className="flex flex-col gap-3">
-              {failed.map(r => (
-                <div key={r.submissionId} className="border rounded-lg p-4 bg-destructive/5 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium text-sm">{r.student?.name || r.student?.email || '—'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {r.status === 'too_large'
-                        ? 'Файл занадто великий — студент має стиснути PDF або перездати меншим файлом'
-                        : 'Не вдалося витягти текст — робота містить лише зображення або пошкоджений PDF'}
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline"
-                    onClick={() => navigate(`/teacher/reports/${r.submissionId}`)}>
-                    Повідомити
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )
+          : <FailedTable failed={failed} assignmentId={assignmentId} downloadOriginal={downloadOriginal} onRefresh={load} />
       )}
     </div>
   );

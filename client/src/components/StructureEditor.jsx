@@ -6,7 +6,7 @@ import api from '../lib/api';
 
 const empty = () => ({ name: '', aliases: '', required: true, forbidden: false, minWords: '' });
 
-export default function StructureEditor({ assignmentId, initial = [], initialMinLength = 100, initialDescription = '', onSave }) {
+export default function StructureEditor({ assignmentId, initial = [], initialMinLength = 100, initialDescription = '', initialStopPhrases = [], onSave }) {
   const [sections, setSections] = useState(
     initial.length ? initial.map(s =>
       typeof s === 'string'
@@ -16,6 +16,7 @@ export default function StructureEditor({ assignmentId, initial = [], initialMin
   );
   const [minTextLength, setMinTextLength] = useState(initialMinLength);
   const [description, setDescription] = useState(initialDescription);
+  const [stopPhrasesText, setStopPhrasesText] = useState((initialStopPhrases || []).join('\n'));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [referenceResult, setReferenceResult] = useState(null);
@@ -72,6 +73,9 @@ export default function StructureEditor({ assignmentId, initial = [], initialMin
     await Promise.all([
       api.put(`/assignments/${assignmentId}/structure`, { sections: payload }),
       api.put(`/assignments/${assignmentId}/settings`, { minTextLength: parseInt(minTextLength) || 100, description }),
+      api.put(`/assignments/${assignmentId}/stop-phrases`, {
+        phrases: stopPhrasesText.split('\n').map(s => s.trim()).filter(Boolean),
+      }),
     ]);
     setSaving(false);
     onSave?.(payload);
@@ -116,6 +120,18 @@ export default function StructureEditor({ assignmentId, initial = [], initialMin
               value={description} onChange={e => setDescription(e.target.value)}
               placeholder="Опишіть що має бути в роботі..." />
           </label>
+        </div>
+        {/* Stop phrases */}
+        <div className="pb-3 border-b">
+          <label className="flex flex-col gap-1 text-xs">
+            Слова/фрази що ігноруються при перевірці запозичень (кожна з нового рядка)
+            <textarea className="border rounded px-2 py-1 text-sm resize-none font-mono" rows={4}
+              value={stopPhrasesText} onChange={e => setStopPhrasesText(e.target.value)}
+              placeholder={'Лабораторна робота\nМета роботи\nВисновок\nКафедра...'} />
+          </label>
+          <p className="text-xs text-muted-foreground mt-1">
+            Ці фрази будуть видалені з тексту перед порівнянням — збіги по них не рахуватимуться.
+          </p>
         </div>
         {sections.map((s, i) => (
           <div key={i} className="border rounded-md p-3 flex flex-col gap-2 bg-muted/20">

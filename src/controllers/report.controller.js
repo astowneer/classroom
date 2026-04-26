@@ -19,7 +19,7 @@ exports.get = async (req, res, next) => {
         model: Submission, as: 'submission',
         include: [
           { model: User, as: 'student', attributes: ['id', 'name', 'email'] },
-          { model: Assignment, as: 'assignment', attributes: ['id', 'title'] },
+          { model: Assignment, as: 'assignment', attributes: ['id', 'title', 'stopPhrases'] },
         ],
       }],
     });

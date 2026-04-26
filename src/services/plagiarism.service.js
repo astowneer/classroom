@@ -154,6 +154,19 @@ function findCommonSequences(textA, textB, wordsA, wordsB) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+// ── Stop phrases ──────────────────────────────────────────────────────────────
+
+function removeStopPhrases(text, stopPhrases) {
+  if (!stopPhrases?.length) return text;
+  let result = text;
+  for (const phrase of stopPhrases) {
+    if (!phrase.trim()) continue;
+    const escaped = phrase.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escaped, 'gi'), ' ');
+  }
+  return result;
+}
+
 exports.compareTexts = (textA, textB) => {
   const wA = tokenizeWords(normalize(textA));
   const wB = tokenizeWords(normalize(textB));
@@ -164,22 +177,29 @@ exports.compareTexts = (textA, textB) => {
   return { matches, similarity: +Math.min(similarity, 1).toFixed(3), matchCount: matches.length };
 };
 
-exports.compare = async (targetSubmission, earlierSubmissions) => {
-  const targetText = normalize(targetSubmission.extractedText);
+exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = []) => {
+  const originalTarget = normalize(targetSubmission.extractedText);
+  const targetText = removeStopPhrases(originalTarget, stopPhrases);
   const targetWords = tokenizeWords(targetText);
   const targetShingles = buildShingles(targetWords);
   const results = [];
 
   for (const source of earlierSubmissions) {
-    const sourceText = normalize(source.extractedText);
+    const originalSource = normalize(source.extractedText);
+    const sourceText = removeStopPhrases(originalSource, stopPhrases);
     const sourceWords = tokenizeWords(sourceText);
 
-    // Quick doc-level filter
-    if (jaccard(targetShingles, buildShingles(sourceWords)) < DOC_THRESHOLD) continue;
+    const docSim = jaccard(targetShingles, buildShingles(sourceWords));
 
-    // Use same LCS algorithm as compareTexts for consistency
-    const matches = findCommonSequences(sourceText, targetText, sourceWords, targetWords);
-    if (!matches.length) continue;
+    const matches = docSim >= DOC_THRESHOLD
+      ? findCommonSequences(sourceText, targetText, sourceWords, targetWords)
+      : [];
+
+    // Re-map inB positions from normalized text to original text
+    const mappedMatches = matches.map(m => {
+      const inBOriginal = findCharPosInOriginal(originalTarget, m.textB);
+      return { ...m, inB: inBOriginal || m.inB, allInB: inBOriginal ? [inBOriginal] : m.allInB };
+    });
 
     const similarity = targetWords.length > 0
       ? Math.min(matches.reduce((s, m) => s + m.wordCount, 0) / targetWords.length, 1)
@@ -189,15 +209,31 @@ exports.compare = async (targetSubmission, earlierSubmissions) => {
       sourceSubmissionId: source.id,
       targetSubmissionId: targetSubmission.id,
       similarity: +similarity.toFixed(3),
-      matches,
+      matches: mappedMatches,
     });
 
-    results.push({
-      sourceSubmissionId: source.id,
-      similarity: +similarity.toFixed(3),
-      matchCount: matches.length,
-      matches,
-    });
+    if (mappedMatches.length) {
+      results.push({
+        sourceSubmissionId: source.id,
+        similarity: +similarity.toFixed(3),
+        matchCount: mappedMatches.length,
+        matches: mappedMatches,
+      });
+    }
   }
   return results;
 };
+
+// Find position of normalized phrase in original (non-stop-phrase-removed) text
+function findCharPosInOriginal(originalText, normalizedPhrase) {
+  if (!normalizedPhrase) return null;
+  const words = normalizedPhrase.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return null;
+  const pattern = new RegExp(
+    words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^\\wа-яіїєґ]*'),
+    'i'
+  );
+  const m = pattern.exec(originalText);
+  if (!m) return null;
+  return { start: m.index, end: m.index + m[0].length };
+}

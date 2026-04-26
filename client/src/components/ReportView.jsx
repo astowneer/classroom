@@ -14,15 +14,63 @@ function buildHighlights(fullText, plagiarismMatches) {
       if (!m.textB) continue;
       const words = m.textB.split(/\s+/).filter(Boolean);
       if (words.length < 2) continue;
-      const pattern = new RegExp(
-        words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^\\wа-яіїєґ]*'),
-        'i'
-      );
-      const found = pattern.exec(fullText);
-      if (found) ranges.push({ start: found.index, end: found.index + found[0].length, color, studentName });
+
+      const esc = w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Find start using first 3 words
+      const startPat = new RegExp(words.slice(0, 3).map(esc).join('[^\\wа-яіїєґ]*'), 'i');
+      const startM = startPat.exec(fullText);
+      if (!startM) continue;
+
+      // Find end using last 3 words, searching from start position
+      const endPat = new RegExp(words.slice(-3).map(esc).join('[^\\wа-яіїєґ]*'), 'i');
+      const tail = fullText.slice(startM.index);
+      const endM = endPat.exec(tail);
+
+      const start = startM.index;
+      const end = endM ? startM.index + endM.index + endM[0].length : startM.index + startM[0].length;
+
+      if (end > start) ranges.push({ start, end, color, studentName });
     }
   });
   return ranges.sort((a, b) => a.start - b.start);
+}
+
+// Find all positions of stop phrases in text
+function buildStopRanges(text, stopPhrases) {
+  const ranges = [];
+  for (const phrase of stopPhrases) {
+    if (!phrase.trim()) continue;
+    const pattern = new RegExp(phrase.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    let m;
+    while ((m = pattern.exec(text)) !== null) {
+      ranges.push({ start: m.index, end: m.index + m[0].length });
+    }
+  }
+  return ranges;
+}
+
+// Remove stop ranges from highlight ranges (split or trim highlights around stop phrases)
+function subtractRanges(highlights, stopRanges) {
+  if (!stopRanges.length) return highlights;
+  const result = [];
+  for (const h of highlights) {
+    let segments = [{ ...h }];
+    for (const s of stopRanges) {
+      const next = [];
+      for (const seg of segments) {
+        if (s.end <= seg.start || s.start >= seg.end) {
+          next.push(seg); // no overlap
+        } else {
+          if (s.start > seg.start) next.push({ ...seg, end: s.start }); // left part
+          if (s.end < seg.end)   next.push({ ...seg, start: s.end });   // right part
+        }
+      }
+      segments = next;
+    }
+    result.push(...segments.filter(s => s.end > s.start));
+  }
+  return result;
 }
 
 function HighlightedText({ text, ranges }) {
@@ -60,10 +108,14 @@ function HighlightedText({ text, ranges }) {
 
 export default function ReportView({ report, submission, student, assignment }) {
   const ref = useRef();
-
+  const stopPhrases = assignment?.stopPhrases || [];
   const { structureResult, plagiarismMatches = [], grammarResult, completenessResult } = report.details || {};
   const fullText = submission?.extractedText || '';
-  const ranges = buildHighlights(fullText, plagiarismMatches);
+
+  // Build highlights then subtract stop phrase ranges
+  const rawRanges = buildHighlights(fullText, plagiarismMatches);
+  const stopRanges = buildStopRanges(fullText, stopPhrases);
+  const ranges = subtractRanges(rawRanges, stopRanges);
 
   const downloadPdf = async () => {
     const html2pdf = (await import('html2pdf.js')).default;

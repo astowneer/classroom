@@ -10,4 +10,6 @@ module.exports = (sequelize) => sequelize.define('Assignment', {
   minTextLength:         { type: DataTypes.INTEGER, defaultValue: 100 },
   // Grading config: { plagiarism: {max, weight}, structure: {max, weight}, completeness: {max, weight}, grammar: {max, weight} }
   gradingConfig:         { type: DataTypes.JSON, defaultValue: null },
+  // Array of phrases to ignore in plagiarism check (e.g. title page boilerplate)
+  stopPhrases:           { type: DataTypes.JSON, defaultValue: [] },
 });

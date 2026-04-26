@@ -248,6 +248,7 @@ export default function AssignmentDetailPage() {
           <StructureEditor assignmentId={assignmentId} initial={assignment?.structureRequirements || []}
             initialMinLength={assignment?.minTextLength ?? 100}
             initialDescription={assignment?.description || ''}
+            initialStopPhrases={assignment?.stopPhrases || []}
             onSave={() => setShowStructure(false)} />
         </div>
       )}

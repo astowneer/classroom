@@ -143,6 +143,7 @@ router.put('/:id/structure', authorize('teacher'), assignmentController.updateSt
 router.put('/:id/description', authorize('teacher'), assignmentController.updateDescription);
 router.put('/:id/settings', authorize('teacher'), assignmentController.updateSettings);
 router.put('/:id/grading', authorize('teacher'), assignmentController.updateGrading);
+router.put('/:id/stop-phrases', authorize('teacher'), assignmentController.updateStopPhrases);
 router.post('/:id/reference', authorize('teacher'), upload.single('file'), assignmentController.uploadReference);
 
 module.exports = router;

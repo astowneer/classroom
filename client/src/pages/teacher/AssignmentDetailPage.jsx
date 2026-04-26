@@ -334,8 +334,8 @@ export default function AssignmentDetailPage() {
                     </p>
                   </div>
                   <Button size="sm" variant="outline"
-                    onClick={() => { setNotifyId(r.submissionId); setTab('results'); }}>
-                    <Send className="h-3 w-3 mr-1" />Повідомити
+                    onClick={() => navigate(`/teacher/reports/${r.submissionId}`)}>
+                    Повідомити
                   </Button>
                 </div>
               ))}

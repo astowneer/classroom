@@ -38,8 +38,27 @@ function FailedTable({ failed, assignmentId, downloadOriginal, onRefresh }) {
     setNotifying(null);
   };
 
+  const downloadList = () => {
+    const lines = failed.map((r, i) => {
+      const name = r.student?.name || r.student?.email || '—';
+      const reason = r.status === 'too_large' ? 'файл занадто великий' : 'не вдалося витягти текст';
+      return `${i + 1}. ${name} — ${reason}`;
+    });
+    const text = `Список студентів, чиї роботи не пройшли перевірку (${failed.length}):\n\n${lines.join('\n')}`;
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `failed-submissions.txt`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" onClick={downloadList}>
+          <Download className="h-4 w-4 mr-2" />Завантажити список ({failed.length})
+        </Button>
+      </div>
       {paged.map(r => (
         <div key={r.submissionId} className="border rounded-lg p-4 bg-destructive/5 flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">

@@ -30,6 +30,7 @@ const PlagiarismResult = require('./plagiarismResult.model')(sequelize);
 const Report = require('./report.model')(sequelize);
 const Notification = require('./notification.model')(sequelize);
 const Message = require('./message.model')(sequelize);
+const Resubmission = require('./resubmission.model')(sequelize);
 
 // Associations
 User.hasMany(Course, { foreignKey: 'teacherId', as: 'taughtCourses' });
@@ -58,4 +59,8 @@ Submission.hasMany(Message, { foreignKey: 'submissionId', as: 'messages' });
 Message.belongsTo(Submission, { foreignKey: 'submissionId', as: 'submission' });
 Message.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 
-module.exports = { sequelize, User, Course, Assignment, Submission, PlagiarismResult, Report, Notification, Message };
+Submission.hasMany(Resubmission, { foreignKey: 'submissionId', as: 'resubmissions' });
+Resubmission.belongsTo(Submission, { foreignKey: 'submissionId', as: 'submission' });
+Resubmission.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
+
+module.exports = { sequelize, User, Course, Assignment, Submission, PlagiarismResult, Report, Notification, Message, Resubmission };

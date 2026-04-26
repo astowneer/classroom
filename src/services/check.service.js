@@ -35,7 +35,7 @@ exports.runAll = async (assignmentId, teacher) => {
           results.push({ submissionId: submission.id, status: 'failed', error: 'Insufficient text' });
           continue;
         }
-
+        await submission.update({ extractedText: text, ...(submission.originalText ? {} : { originalText: text }), status: 'text_extracted' });
         await submission.update({ extractedText: text, status: 'text_extracted' });
       } catch (err) {
         if (err.code === 'FILE_TOO_LARGE') {
@@ -64,11 +64,19 @@ exports.runAll = async (assignmentId, teacher) => {
     );
     await submission.update({ structureResult });
 
-    // 3. Plagiarism
+    // 3. Plagiarism — compare against submissions submitted BEFORE this one
     const earlier = submissions.filter(
-      s => s.submittedAt < submission.submittedAt && s.extractedText
-    );
-    const plagiarismMatches = await plagiarismService.compare(submission, earlier, assignment.stopPhrases || []);
+      s => s.id !== submission.id && (s.originalText || s.extractedText) &&
+      (s.submittedAt < submission.submittedAt ||
+       (s.submittedAt?.getTime?.() === submission.submittedAt?.getTime?.() && s.id < submission.id))
+    ).map(s => ({ ...s.toJSON(), extractedText: s.originalText || s.extractedText }));
+
+    // Always compare using originalText (preserved from first extraction)
+    const submissionForPlagiarism = {
+      ...submission.toJSON(),
+      extractedText: submission.originalText || submission.extractedText,
+    };
+    const plagiarismMatches = await plagiarismService.compare(submissionForPlagiarism, earlier, assignment.stopPhrases || []);
 
     // 4. Grammar check (non-fatal — skip if LanguageTool unavailable)
     let grammarResult = null;

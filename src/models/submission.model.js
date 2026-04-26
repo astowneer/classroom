@@ -7,12 +7,13 @@ module.exports = (sequelize) => sequelize.define('Submission', {
   fileUrl:            { type: DataTypes.TEXT },
   localFilePath:      { type: DataTypes.TEXT },   // uploaded directly by student
   extractedText:      { type: DataTypes.TEXT },
+  originalText:       { type: DataTypes.TEXT },  // preserved original, never overwritten
+  resubmitText:       { type: DataTypes.TEXT },   // text from resubmitted file (keeps original intact)
   submittedAt:        { type: DataTypes.DATE },
   status: {
     type: DataTypes.ENUM(
       'pending', 'text_extracted', 'checked', 'failed', 'too_large',
-      'resubmit_pending', 'resubmit_checked', 'resubmit_review',
-      'resubmit_accepted', 'resubmit_rejected',
+      'resubmit_pending', 'resubmit_checked',
     ),
     defaultValue: 'pending',
   },

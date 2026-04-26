@@ -77,14 +77,18 @@ exports.syncSubmissions = async (user, assignmentId) => {
 
     const existing = await Submission.findOne({ where: { googleSubmissionId: s.id } });
     const fileChanged = existing && existing.fileUrl !== newFileUrl;
+    const dateChanged = existing && existing.submittedAt &&
+      new Date(existing.submittedAt).getTime() !== new Date(s.updateTime).getTime();
+    const needsReset = fileChanged || dateChanged;
 
-    if (fileChanged) {
+    if (needsReset) {
       await Report.destroy({ where: { submissionId: existing.id } });
       await PlagiarismResult.destroy({ where: { targetSubmissionId: existing.id } });
       await existing.update({
         fileUrl: newFileUrl,
         submittedAt: s.updateTime,
         extractedText: null,
+        originalText: null,
         status: 'pending',
         structureResult: null,
       });

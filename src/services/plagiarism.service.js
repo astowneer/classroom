@@ -178,7 +178,7 @@ exports.compareTexts = (textA, textB) => {
   return { matches, similarity: +Math.min(similarity, 1).toFixed(3), matchCount: matches.length };
 };
 
-exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = []) => {
+exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = [], saveToDb = true) => {
   if (!targetSubmission.extractedText) return [];
   const originalTarget = normalize(targetSubmission.extractedText);
   const targetText = removeStopPhrases(originalTarget, stopPhrases);
@@ -207,12 +207,14 @@ exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = [])
       ? Math.min(matches.reduce((s, m) => s + m.wordCount, 0) / targetWords.length, 1)
       : 0;
 
-    await PlagiarismResult.upsert({
-      sourceSubmissionId: source.id,
-      targetSubmissionId: targetSubmission.id,
-      similarity: +similarity.toFixed(3),
-      matches: mappedMatches,
-    });
+    if (saveToDb) {
+      await PlagiarismResult.upsert({
+        sourceSubmissionId: source.id,
+        targetSubmissionId: targetSubmission.id,
+        similarity: +similarity.toFixed(3),
+        matches: mappedMatches,
+      });
+    }
 
     if (mappedMatches.length) {
       results.push({

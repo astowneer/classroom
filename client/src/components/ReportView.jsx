@@ -127,7 +127,8 @@ export default function ReportView({ report, submission, student, assignment }) 
   const ref = useRef();
   const stopPhrases = assignment?.stopPhrases || [];
   const { structureResult, plagiarismMatches = [], grammarResult, completenessResult } = report.details || {};
-  const fullText = submission?.extractedText || '';
+  // Use originalText for display if available (preserves pre-resubmission text)
+  const fullText = submission?.originalText || submission?.extractedText || '';
 
   // Build highlights then subtract stop phrase ranges
   const rawRanges = buildHighlights(fullText, plagiarismMatches);

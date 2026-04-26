@@ -106,94 +106,126 @@ exports.downloadFile = async (req, res, next) => {
 
 exports.resubmit = async (req, res, next) => {
   try {
-    const submission = await Submission.findOne({
-      where: { id: req.params.id, studentId: req.user.id },
-    });
+    const submission = await Submission.findOne({ where: { id: req.params.id, studentId: req.user.id } });
     if (!submission) return res.status(404).json({ error: 'Not found' });
     if (!req.file) return res.status(400).json({ error: 'PDF file required' });
 
-    // Clean up old resubmit results
-    await Report.destroy({ where: { submissionId: submission.id } });
-    await PlagiarismResult.destroy({ where: { targetSubmissionId: submission.id } });
-
-    await submission.update({
+    const { Resubmission } = require('../models');
+    const resub = await Resubmission.create({
+      submissionId: submission.id,
+      studentId: req.user.id,
       localFilePath: req.file.path,
-      extractedText: null,
-      status: 'resubmit_pending',
-      structureResult: null,
-      teacherComment: null,
+      status: 'pending',
     });
-
-    res.json(submission);
+    // Update original submission status only
+    await submission.update({ status: 'resubmit_pending' });
+    res.json(resub);
   } catch (err) { next(err); }
 };
 
-// POST /submissions/:id/self-check — student runs check on their uploaded file
 exports.selfCheck = async (req, res, next) => {
   try {
-    const submission = await Submission.findOne({
-      where: { id: req.params.id, studentId: req.user.id },
+    const { Resubmission } = require('../models');
+    const resub = await Resubmission.findOne({
+      where: { submissionId: req.params.id, studentId: req.user.id, status: 'pending' },
+      order: [['createdAt', 'DESC']],
     });
-    if (!submission) return res.status(404).json({ error: 'Not found' });
-    if (!submission.localFilePath) return res.status(400).json({ error: 'No file uploaded' });
+    if (!resub) return res.status(404).json({ error: 'No pending resubmission found' });
 
-    // Extract text from local file
-    const text = await pdfService.extractFromLocalFile(submission.localFilePath);
-    await submission.update({ extractedText: text, status: 'text_extracted' });
+    const text = await pdfService.extractFromLocalFile(resub.localFilePath);
+    const originalSubmission = await Submission.findByPk(req.params.id);
+    const assignment = await Assignment.findByPk(originalSubmission.assignmentId);
 
-    const assignment = await Assignment.findByPk(submission.assignmentId);
-
-    // Structure check
     const structureResult = structureService.check(text, assignment.structureRequirements);
-    await submission.update({ structureResult });
 
-    // Plagiarism — compare against all checked submissions of this assignment (excluding self)
+    // Compare against all checked submissions (using originalText for accuracy)
     const others = await Submission.findAll({
-      where: { assignmentId: submission.assignmentId, status: 'checked' },
+      where: { assignmentId: assignment.id, status: 'checked' },
     });
-    const plagiarismMatches = await plagiarismService.compare(submission, others);
+    const othersWithOriginal = others
+      .filter(s => s.id !== originalSubmission.id && (s.originalText || s.extractedText))
+      .map(s => ({ ...s.toJSON(), extractedText: s.originalText || s.extractedText }));
 
-    const report = await reportService.create(submission, structureResult, plagiarismMatches);
-    await submission.update({ status: 'resubmit_checked' });
+    const fakeSubmission = { id: `resub-${resub.id}`, extractedText: text, submittedAt: new Date() };
+    const plagiarismMatches = await plagiarismService.compare(fakeSubmission, othersWithOriginal, assignment.stopPhrases || [], false);
+    const plagiarismScore = plagiarismMatches.length ? Math.max(...plagiarismMatches.map(m => m.similarity)) : 0;
 
-    res.json({ submission, report });
+    // Save results ONLY in Resubmission — does NOT affect teacher's view
+    await resub.update({
+      extractedText: text,
+      structureResult,
+      status: 'checked',
+      plagiarismScore,
+      reportDetails: { structureResult, plagiarismMatches },
+    });
+
+    // Do NOT change original submission status or report
+    res.json(resub);
   } catch (err) { next(err); }
 };
 
-// POST /submissions/:id/submit-review — student submits for teacher review
 exports.submitForReview = async (req, res, next) => {
   try {
-    const submission = await Submission.findOne({
-      where: { id: req.params.id, studentId: req.user.id, status: 'resubmit_checked' },
+    const { Resubmission } = require('../models');
+    const resub = await Resubmission.findOne({
+      where: { submissionId: req.params.id, studentId: req.user.id, status: 'checked' },
+      order: [['createdAt', 'DESC']],
     });
-    if (!submission) return res.status(404).json({ error: 'Not found or not ready for review' });
-    await submission.update({ status: 'resubmit_review' });
-    res.json(submission);
+    if (!resub) return res.status(404).json({ error: 'Not found or not ready' });
+    await resub.update({ status: 'review' });
+    await Submission.update({ status: 'resubmit_review' }, { where: { id: req.params.id } });
+    res.json(resub);
   } catch (err) { next(err); }
 };
 
-// POST /submissions/:id/review — teacher accepts or rejects
 exports.review = async (req, res, next) => {
   try {
-    const { decision, comment } = req.body; // decision: 'accept' | 'reject'
-    if (!['accept', 'reject'].includes(decision)) {
-      return res.status(400).json({ error: 'decision must be accept or reject' });
+    const { decision, comment } = req.body;
+    if (!['accept', 'reject'].includes(decision)) return res.status(400).json({ error: 'decision must be accept or reject' });
+
+    const { Resubmission, Report } = require('../models');
+    const resub = await Resubmission.findOne({
+      where: { submissionId: req.params.id, status: 'review' },
+      order: [['createdAt', 'DESC']],
+    });
+    if (!resub) return res.status(404).json({ error: 'Not found or not in review' });
+
+    const resubStatus = decision === 'accept' ? 'accepted' : 'rejected';
+    const submissionStatus = decision === 'accept' ? 'resubmit_accepted' : 'resubmit_rejected';
+    await resub.update({ status: resubStatus, teacherComment: comment || null });
+    await Submission.update({ status: submissionStatus }, { where: { id: req.params.id } });
+
+    // If accepted — update main Report and Submission with resubmission data
+    if (decision === 'accept' && resub.reportDetails) {
+      const { structureResult, plagiarismMatches } = resub.reportDetails;
+
+      // Update extractedText in submission with resubmission text
+      // Preserve originalText (first-ever extracted text) for plagiarism baseline
+      const sub = await Submission.findByPk(req.params.id);
+      await sub.update({
+        structureResult,
+        extractedText: resub.extractedText,
+        // Save original only if not already saved
+        ...(sub.originalText ? {} : { originalText: sub.extractedText }),
+      });
+
+      // Update main Report with resubmission results
+      // Note: we do NOT touch PlagiarismResult table — those belong to the original submission
+      // The report details now reflect the resubmission check
+      await Report.update({
+        plagiarismScore: resub.plagiarismScore ?? 0,
+        structurePassed: structureResult?.passed ?? false,
+        details: resub.reportDetails,
+        grade: resub.grade,
+        sentToStudent: false,
+      }, { where: { submissionId: req.params.id } });
     }
 
-    const submission = await Submission.findOne({
-      where: { id: req.params.id, status: 'resubmit_review' },
-    });
-    if (!submission) return res.status(404).json({ error: 'Not found or not in review' });
-
-    const status = decision === 'accept' ? 'resubmit_accepted' : 'resubmit_rejected';
-    await submission.update({ status, teacherComment: comment || null });
-
-    // Notify student
     const msg = decision === 'accept'
       ? `Вашу переробку прийнято.${comment ? ' ' + comment : ''}`
       : `Вашу переробку відхилено.${comment ? ' Причина: ' + comment : ''}`;
-    await notificationService.notifyStudent(submission.id, msg, req.user);
+    await notificationService.notifyStudent(req.params.id, msg, req.user);
 
-    res.json(submission);
+    res.json(resub);
   } catch (err) { next(err); }
 };

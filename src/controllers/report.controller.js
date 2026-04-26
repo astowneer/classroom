@@ -21,9 +21,18 @@ exports.get = async (req, res, next) => {
           { model: User, as: 'student', attributes: ['id', 'name', 'email'] },
           { model: Assignment, as: 'assignment', attributes: ['id', 'title', 'stopPhrases'] },
         ],
+        attributes: { exclude: [] }, // include all fields including originalText
       }],
     });
     if (!report) return res.status(404).json({ error: 'Not found' });
+
+    // Load latest resubmission if exists
+    const { Resubmission } = require('../models');
+    const latestResub = await Resubmission.findOne({
+      where: { submissionId: req.params.submissionId },
+      order: [['createdAt', 'DESC']],
+    });
+    if (latestResub) report.dataValues.latestResubmission = latestResub;
 
     // Enrich plagiarism matches with source student info
     const plagiarismMatches = report.details?.plagiarismMatches || [];

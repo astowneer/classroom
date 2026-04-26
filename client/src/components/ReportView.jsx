@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Card';
 import { Download, Printer } from 'lucide-react';
@@ -106,6 +106,23 @@ function HighlightedText({ text, ranges }) {
   );
 }
 
+function FullTextSection({ fullText, ranges, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div id="full-text-section">
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 font-semibold text-base mb-2 hover:text-gray-600 w-full text-left">
+        <span>{open ? '▾' : '▸'}</span> Текст роботи
+      </button>
+      {open && (
+        <div className="border rounded p-4 bg-gray-50 leading-relaxed">
+          <HighlightedText text={fullText} ranges={ranges} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ReportView({ report, submission, student, assignment }) {
   const ref = useRef();
   const stopPhrases = assignment?.stopPhrases || [];
@@ -119,6 +136,13 @@ export default function ReportView({ report, submission, student, assignment }) 
 
   const downloadPdf = async () => {
     const html2pdf = (await import('html2pdf.js')).default;
+    // Expand full text section if collapsed
+    const textSection = ref.current.querySelector('#full-text-section');
+    const textContent = textSection?.querySelector('.border.rounded.p-4');
+    const wasHidden = textSection && !textContent;
+    if (wasHidden) textSection.querySelector('button')?.click();
+    // Small delay to let React re-render
+    await new Promise(r => setTimeout(r, 100));
     // Hide elements not needed in PDF
     const noPrint = ref.current.querySelectorAll('.no-print');
     noPrint.forEach(el => el.style.display = 'none');
@@ -129,6 +153,8 @@ export default function ReportView({ report, submission, student, assignment }) 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     }).from(ref.current).save();
     noPrint.forEach(el => el.style.display = '');
+    // Collapse back if it was hidden
+    if (wasHidden) textSection.querySelector('button')?.click();
   };
 
   const legend = plagiarismMatches.map((m, idx) => ({
@@ -239,12 +265,7 @@ export default function ReportView({ report, submission, student, assignment }) 
         )}
 
         {/* Full text with highlights */}
-        <div>
-          <h2 className="font-semibold text-base mb-3">Текст роботи</h2>
-          <div className="border rounded p-4 bg-gray-50 leading-relaxed">
-            <HighlightedText text={fullText} ranges={ranges} />
-          </div>
-        </div>
+        <FullTextSection fullText={fullText} ranges={ranges} />
       </div>
     </div>
   );

@@ -14,7 +14,16 @@ exports.list = async (req, res, next) => {
     if (assignmentId) where.assignmentId = assignmentId;
     if (status) where.status = status;
     if (req.user.role === 'student') where.studentId = req.user.id;
-    const submissions = await Submission.findAll({ where });
+    const { Assignment, Course } = require('../models');
+    const submissions = await Submission.findAll({
+      where,
+      include: [{
+        model: Assignment, as: 'assignment',
+        attributes: ['id', 'title'],
+        include: [{ model: Course, as: 'course', attributes: ['id', 'name'] }],
+      }],
+      order: [['submittedAt', 'DESC']],
+    });
     res.json(submissions);
   } catch (err) { next(err); }
 };

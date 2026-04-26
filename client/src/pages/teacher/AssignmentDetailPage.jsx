@@ -273,11 +273,19 @@ export default function AssignmentDetailPage() {
   useEffect(() => { load(); }, [assignmentId]);
 
   const sync = async () => { setSyncing(true); await api.post(`/submissions/sync/${assignmentId}`); await load(); setSyncing(false); };
-  const runCheck = async () => { setChecking(true); await api.post(`/submissions/check/${assignmentId}`); await load(); setChecking(false); };
+  const [checkError, setCheckError] = useState(null);
+
+  const runCheck = async () => {
+    setChecking(true); setCheckError(null);
+    try { await api.post(`/submissions/check/${assignmentId}`); }
+    catch (err) { setCheckError(err.response?.data?.error || 'Помилка перевірки'); }
+    await load(); setChecking(false);
+  };
   const runCheckSelected = async () => {
     if (!selected.size) return;
-    setChecking(true);
-    await api.post('/submissions/check-selected', { submissionIds: [...selected], assignmentId: parseInt(assignmentId) });
+    setChecking(true); setCheckError(null);
+    try { await api.post('/submissions/check-selected', { submissionIds: [...selected], assignmentId: parseInt(assignmentId) }); }
+    catch (err) { setCheckError(err.response?.data?.error || 'Помилка перевірки'); }
     setSelected(new Set());
     await load();
     setChecking(false);
@@ -323,6 +331,12 @@ export default function AssignmentDetailPage() {
           {showExtract ? 'Сховати поля' : 'Поля витягування'}
         </Button>
       </div>
+
+      {checkError && (
+        <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded text-sm text-destructive">
+          {checkError}
+        </div>
+      )}
 
       {showStructure && (
         <div className="mb-4">

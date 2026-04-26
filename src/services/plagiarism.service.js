@@ -10,6 +10,7 @@ const MIN_SEQ = 6; // min words in a common sequence for compareTexts
 // ── Normalization ─────────────────────────────────────────────────────────────
 
 function normalize(text) {
+  if (!text) return '';
   return text
     .replace(/\u00AD/g, '')       // soft hyphens
     .replace(/-\n\s*/g, '')       // hyphenated line breaks
@@ -178,6 +179,7 @@ exports.compareTexts = (textA, textB) => {
 };
 
 exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = []) => {
+  if (!targetSubmission.extractedText) return [];
   const originalTarget = normalize(targetSubmission.extractedText);
   const targetText = removeStopPhrases(originalTarget, stopPhrases);
   const targetWords = tokenizeWords(targetText);

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Card';
-import { Download, Printer } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 const COLORS = ['#fde68a', '#bbf7d0', '#fecaca', '#bfdbfe', '#fed7aa', '#e9d5ff', '#d1fae5'];
 
@@ -171,9 +171,6 @@ export default function ReportView({ report, submission, student, assignment }) 
       <div className="flex gap-2 mb-4 print:hidden">
         <Button size="sm" variant="outline" onClick={downloadPdf}>
           <Download className="h-4 w-4 mr-2" />Завантажити PDF
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => window.print()}>
-          <Printer className="h-4 w-4 mr-2" />Друк
         </Button>
       </div>
 

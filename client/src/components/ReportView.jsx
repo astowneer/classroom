@@ -119,12 +119,16 @@ export default function ReportView({ report, submission, student, assignment }) 
 
   const downloadPdf = async () => {
     const html2pdf = (await import('html2pdf.js')).default;
-    html2pdf().set({
+    // Hide elements not needed in PDF
+    const noPrint = ref.current.querySelectorAll('.no-print');
+    noPrint.forEach(el => el.style.display = 'none');
+    await html2pdf().set({
       margin: 10,
       filename: `report-${submission?.id}.pdf`,
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     }).from(ref.current).save();
+    noPrint.forEach(el => el.style.display = '');
   };
 
   const legend = plagiarismMatches.map((m, idx) => ({
@@ -132,6 +136,7 @@ export default function ReportView({ report, submission, student, assignment }) 
     name: m.studentName || `#${m.sourceSubmissionId}`,
     similarity: m.similarity,
     count: m.matches?.length ?? 0,
+    sourceSubmissionId: m.sourceSubmissionId,
   }));
 
   return (
@@ -177,11 +182,20 @@ export default function ReportView({ report, submission, student, assignment }) 
           {legend.length === 0
             ? <p className="text-green-700 text-sm">Запозичень не виявлено</p>
             : (
-              <div className="flex flex-col gap-1 mb-3">
+              <div className="flex flex-col gap-2 mb-3">
                 {legend.map((l, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    <span style={{ backgroundColor: l.color, width: 14, height: 14, borderRadius: 2, display: 'inline-block' }} />
-                    {l.name} — {(l.similarity * 100).toFixed(1)}% ({l.count} збігів)
+                  <div key={i} className="flex items-center gap-2 text-xs border rounded p-2">
+                    <span style={{ backgroundColor: l.color, width: 14, height: 14, borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+                    <div className="flex-1">
+                      <span className="font-medium">{l.name}</span>
+                      <span className="text-gray-500 ml-2">— {(l.similarity * 100).toFixed(1)}% ({l.count} збігів)</span>
+                    </div>
+                    {l.sourceSubmissionId && (
+                      <a href={`/teacher/reports/${l.sourceSubmissionId}`}
+                        className="text-blue-600 underline text-xs ml-auto flex-shrink-0 print:hidden no-print">
+                        Переглянути роботу →
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>

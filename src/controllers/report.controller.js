@@ -24,6 +24,27 @@ exports.get = async (req, res, next) => {
       }],
     });
     if (!report) return res.status(404).json({ error: 'Not found' });
+
+    // Enrich plagiarism matches with source student info
+    const plagiarismMatches = report.details?.plagiarismMatches || [];
+    if (plagiarismMatches.length) {
+      const sourceIds = [...new Set(plagiarismMatches.map(m => m.sourceSubmissionId))];
+      const sources = await Submission.findAll({
+        where: { id: sourceIds },
+        include: [{ model: User, as: 'student', attributes: ['id', 'name', 'email'] }],
+        attributes: ['id'],
+      });
+      const sourceMap = Object.fromEntries(sources.map(s => [s.id, s.student]));
+      report.dataValues.details = {
+        ...report.details,
+        plagiarismMatches: plagiarismMatches.map(m => ({
+          ...m,
+          studentName: sourceMap[m.sourceSubmissionId]?.name || sourceMap[m.sourceSubmissionId]?.email || `#${m.sourceSubmissionId}`,
+          studentId: sourceMap[m.sourceSubmissionId]?.id,
+        })),
+      };
+    }
+
     res.json(report);
   } catch (err) { next(err); }
 };

@@ -103,6 +103,76 @@ exports.getByAssignment = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.exportExcel = async (req, res, next) => {
+  try {
+    const where = { assignmentId: req.params.assignmentId };
+    if (req.user.role === 'student') where.studentId = req.user.id;
+
+    const submissions = await Submission.findAll({
+      where,
+      include: [
+        { model: User, as: 'student', attributes: ['id', 'name', 'email'] },
+        { model: Report, as: 'report' },
+      ],
+      group: ['Submission.id', 'student.id', 'report.id'],
+    });
+
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Результати');
+
+    sheet.columns = [
+      { header: 'Студент',       key: 'student',      width: 30 },
+      { header: 'Email',         key: 'email',        width: 30 },
+      { header: 'Дата здачі',    key: 'submittedAt',  width: 18 },
+      { header: 'Запозичення %', key: 'plagiarism',   width: 16 },
+      { header: 'Структура %',   key: 'structure',    width: 14 },
+      { header: 'Повнота %',     key: 'completeness', width: 14 },
+      { header: 'Граматика',     key: 'grammar',      width: 12 },
+      { header: 'Оцінка',        key: 'grade',        width: 10 },
+      { header: 'Макс. оцінка',  key: 'maxGrade',     width: 12 },
+    ];
+
+    // Style header row
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+
+    for (const s of submissions) {
+      const r = s.report;
+      const details = r?.details || {};
+      const plagScore = r?.plagiarismScore != null ? +(r.plagiarismScore * 100).toFixed(1) : null;
+      const structScore = details.structureResult?.score ?? (r?.structurePassed ? 100 : 0);
+      const completeness = details.completenessResult?.score != null
+        ? +(details.completenessResult.score * 100).toFixed(1) : null;
+      const grammarErrors = details.grammarResult?.errorCount ?? null;
+
+      const row = sheet.addRow({
+        student:      s.student?.name || '—',
+        email:        s.student?.email || '—',
+        submittedAt:  s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('uk-UA') : '—',
+        plagiarism:   plagScore,
+        structure:    structScore,
+        completeness,
+        grammar:      grammarErrors,
+        grade:        r?.grade?.total ?? null,
+        maxGrade:     r?.grade?.maxTotal ?? null,
+      });
+
+      // Color plagiarism cell
+      if (plagScore != null) {
+        const cell = row.getCell('plagiarism');
+        cell.fill = { type: 'pattern', pattern: 'solid',
+          fgColor: { argb: plagScore > 30 ? 'FFFFC7CE' : 'FFC6EFCE' } };
+      }
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="results-${req.params.assignmentId}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) { next(err); }
+};
+
 exports.download = async (req, res, next) => {
   try {
     if (!await canAccess(req.params.submissionId, req.user)) {

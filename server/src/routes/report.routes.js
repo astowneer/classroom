@@ -47,6 +47,7 @@ router.use(authenticate);
  *                     type: boolean
  */
 router.get('/assignment/:assignmentId', reportController.getByAssignment);
+router.get('/assignment/:assignmentId/export', reportController.exportExcel);
 
 /**
  * @swagger

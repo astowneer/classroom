@@ -339,6 +339,15 @@ export default function AssignmentDetailPage() {
             <Play className="h-4 w-4 mr-2" />Перевірити вибрані ({selected.size})
           </Button>
         )}
+        <Button size="sm" variant="outline" onClick={async () => {
+          const res = await api.get(`/reports/assignment/${assignmentId}/export`, { responseType: 'blob' });
+          const url = URL.createObjectURL(new Blob([res.data]));
+          const a = document.createElement('a'); a.href = url;
+          a.download = `results-${assignmentId}.xlsx`; a.click();
+          URL.revokeObjectURL(url);
+        }}>
+          <Download className="h-4 w-4 mr-2" />Excel
+        </Button>
         <Button size="sm" variant="outline" onClick={() => setShowStructure(s => !s)}>
           {showStructure ? 'Сховати структуру' : 'Налаштувати структуру'}
         </Button>

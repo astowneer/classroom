@@ -4,11 +4,21 @@ const { Message, Submission, User } = require('../models');
 exports.list = async (req, res, next) => {
   try {
     const { submissionId } = req.params;
+    const { Course, Assignment } = require('../models');
 
-    // Access check: teacher sees all, student sees only their own
+    const sub = await Submission.findByPk(submissionId, {
+      include: [{ model: Assignment, as: 'assignment', include: [{ model: Course, as: 'course' }] }],
+    });
+    if (!sub) return res.status(404).json({ error: 'Not found' });
+
     if (req.user.role === 'student') {
-      const sub = await Submission.findByPk(submissionId);
-      if (!sub || sub.studentId !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+      // Student can only see their own submission's chat
+      if (sub.studentId !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    } else {
+      // Teacher can only see chats for submissions in their own courses
+      if (sub.assignment?.course?.teacherId !== req.user.id) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
     }
 
     const messages = await Message.findAll({
@@ -17,7 +27,6 @@ exports.list = async (req, res, next) => {
       order: [['createdAt', 'ASC']],
     });
 
-    // Mark unread messages as read for current user
     await Message.update(
       { read: true },
       { where: { submissionId, read: false, senderId: { [require('sequelize').Op.ne]: req.user.id } } }
@@ -43,6 +52,16 @@ exports.send = async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    if (req.user.role === 'teacher') {
+      const { Course, Assignment } = require('../models');
+      const assignment = await Assignment.findByPk(sub.assignmentId, {
+        include: [{ model: Course, as: 'course' }],
+      });
+      if (assignment?.course?.teacherId !== req.user.id) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+
     const message = await Message.create({ submissionId, senderId: req.user.id, text: text.trim() });
 
     // Notify the other party
@@ -66,12 +85,35 @@ exports.send = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// GET /messages/unread — count unread messages per submission for teacher
+// GET /messages/unread — count unread messages per submission
 exports.unreadCount = async (req, res, next) => {
   try {
-    const { Op, fn, col, literal } = require('sequelize');
+    const { Op, fn, col } = require('sequelize');
+
+    // For teachers: only submissions from their courses
+    // For students: only their own submissions
+    let submissionIds;
+    if (req.user.role === 'teacher') {
+      const { Course, Assignment } = require('../models');
+      const courses = await Course.findAll({ where: { teacherId: req.user.id }, attributes: ['id'] });
+      const courseIds = courses.map(c => c.id);
+      const assignments = await Assignment.findAll({ where: { courseId: courseIds }, attributes: ['id'] });
+      const assignmentIds = assignments.map(a => a.id);
+      const subs = await Submission.findAll({ where: { assignmentId: assignmentIds }, attributes: ['id'] });
+      submissionIds = subs.map(s => s.id);
+    } else {
+      const subs = await Submission.findAll({ where: { studentId: req.user.id }, attributes: ['id'] });
+      submissionIds = subs.map(s => s.id);
+    }
+
+    if (!submissionIds.length) return res.json([]);
+
     const counts = await Message.findAll({
-      where: { read: false, senderId: { [Op.ne]: req.user.id } },
+      where: {
+        submissionId: submissionIds,
+        read: false,
+        senderId: { [Op.ne]: req.user.id },
+      },
       attributes: ['submissionId', [fn('COUNT', col('id')), 'count']],
       group: ['submissionId'],
       raw: true,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../lib/api';
 import { Badge, Spinner } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -23,8 +23,21 @@ const statusVariant = s => ({
 }[s] || 'secondary');
 
 function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, message, setMessage, notify, review, selected, setSelected }) {
-  const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState({ status: '', plagiarism: '', grade: '' });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const page = parseInt(searchParams.get('page') || '1');
+  const filter = {
+    status:    searchParams.get('status') || '',
+    plagiarism: searchParams.get('plagiarism') || '',
+    grade:     searchParams.get('grade') || '',
+  };
+
+  const setPage = (p) => setSearchParams(prev => { prev.set('page', p); return prev; }, { replace: true });
+  const setF = (key, val) => setSearchParams(prev => {
+    val ? prev.set(key, val) : prev.delete(key);
+    prev.set('page', '1');
+    return prev;
+  }, { replace: true });
 
   const filtered = results.filter(r => {
     if (filter.status && r.status !== filter.status) return false;
@@ -57,8 +70,6 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
     return next;
   });
 
-  const setF = (key, val) => { setFilter(f => ({ ...f, [key]: val })); setPage(1); };
-
   return (
     <div className="flex flex-col gap-3">
       {/* Filters */}
@@ -84,7 +95,7 @@ function ResultsTable({ results, navigate, downloadPdf, notifyId, setNotifyId, m
           <option value="bad">До 50% балів</option>
         </select>
         {(filter.status || filter.plagiarism || filter.grade) && (
-          <button className="text-xs text-muted-foreground underline" onClick={() => setFilter({ status: '', plagiarism: '', grade: '' })}>
+          <button className="text-xs text-muted-foreground underline" onClick={() => setSearchParams({}, { replace: true })}>
             Скинути
           </button>
         )}

@@ -82,5 +82,6 @@ router.get('/course/:courseId/students', authorize('teacher'), userController.li
  *                   type: string
  */
 router.patch('/:id/name', authorize('teacher'), userController.updateName);
+router.patch('/:id', authorize('teacher'), userController.updateUser);
 
 module.exports = router;

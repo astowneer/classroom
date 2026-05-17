@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
-import { Card, CardHeader, CardTitle, CardContent, Spinner } from '../../components/ui/Card';
+import { Card, CardHeader, CardTitle, Spinner } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { RefreshCw, FileText, ChevronLeft } from 'lucide-react';
 

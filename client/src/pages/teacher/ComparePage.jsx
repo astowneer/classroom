@@ -94,11 +94,6 @@ export default function ComparePage() {
               Збіг речень: {(similarity * 100).toFixed(1)}%
               {matches && <span className="text-sm font-normal text-muted-foreground ml-2">({matches.length} фрагментів)</span>}
             </div>
-            {docSimilarity !== null && (
-              <div className="text-sm text-muted-foreground">
-                Збіг документів: {(docSimilarity * 100).toFixed(1)}%
-              </div>
-            )}
           </div>
         )}
       </div>

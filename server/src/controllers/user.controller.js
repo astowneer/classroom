@@ -20,7 +20,7 @@ exports.listByCourse = async (req, res, next) => {
         where: { courseId: req.params.courseId },
         attributes: [],
       }, {
-        model: User, as: 'student', attributes: ['id', 'name', 'email', 'googleId'],
+        model: User, as: 'student', attributes: ['id', 'name', 'email', 'googleId', 'variant'],
       }],
       attributes: ['studentId'],
     });
@@ -38,12 +38,26 @@ exports.listByCourse = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// PATCH /api/users/:id/name  { "name": "Дробідько Владислав Анатолійович" }
+// PATCH /api/users/:id/name  { "name": "..." }
 exports.updateName = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ error: 'Not found' });
     await user.update({ name: req.body.name });
-    res.json({ id: user.id, name: user.name, email: user.email });
+    res.json({ id: user.id, name: user.name, email: user.email, variant: user.variant });
+  } catch (err) { next(err); }
+};
+
+// PATCH /api/users/:id  { "name": "...", "variant": "7" }
+exports.updateUser = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Not found' });
+    const { name, variant } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (variant !== undefined) updates.variant = variant;
+    await user.update(updates);
+    res.json({ id: user.id, name: user.name, email: user.email, variant: user.variant });
   } catch (err) { next(err); }
 };

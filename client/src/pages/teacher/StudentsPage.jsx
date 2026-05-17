@@ -11,7 +11,8 @@ export default function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [editField, setEditField] = useState(null); // 'name' | 'variant'
+  const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -20,14 +21,14 @@ export default function StudentsPage() {
       .finally(() => setLoading(false));
   }, [courseId]);
 
-  const startEdit = (s) => { setEditId(s.id); setEditName(s.name || ''); };
-  const cancelEdit = () => { setEditId(null); setEditName(''); };
+  const startEdit = (s, field) => { setEditId(s.id); setEditField(field); setEditValue(s[field] || ''); };
+  const cancelEdit = () => { setEditId(null); setEditField(null); setEditValue(''); };
 
-  const saveName = async (id) => {
+  const saveEdit = async (id) => {
     setSaving(true);
-    const res = await api.patch(`/users/${id}/name`, { name: editName });
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, name: res.data.name } : s));
-    setEditId(null);
+    const res = await api.patch(`/users/${id}`, { [editField]: editValue });
+    setStudents(prev => prev.map(s => s.id === id ? { ...s, ...res.data } : s));
+    cancelEdit();
     setSaving(false);
   };
 
@@ -48,37 +49,61 @@ export default function StudentsPage() {
             <Card key={s.id}>
               <CardContent className="pt-3 pb-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  {editId === s.id ? (
-                    <input
-                      className="border rounded px-2 py-1 text-sm w-full"
-                      value={editName}
-                      onChange={e => setEditName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && saveName(s.id)}
-                      autoFocus
-                      placeholder="Прізвище Ім'я По-батькові"
-                    />
-                  ) : (
-                    <>
-                      <p className="font-medium text-sm">{s.name || <span className="text-muted-foreground italic">Ім'я не вказано</span>}</p>
-                      <p className="text-xs text-muted-foreground truncate">{s.email}</p>
-                    </>
-                  )}
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {editId === s.id ? (
-                    <>
-                      <Button size="sm" onClick={() => saveName(s.id)} disabled={saving}>
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </>
-                  ) : (
-                    <Button size="sm" variant="ghost" onClick={() => startEdit(s)}>
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  )}
+                  {/* Name row */}
+                  <div className="flex items-center gap-2">
+                    {editId === s.id && editField === 'name' ? (
+                      <input
+                        className="border rounded px-2 py-1 text-sm flex-1"
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && saveEdit(s.id)}
+                        autoFocus
+                        placeholder="Прізвище Ім'я По-батькові"
+                      />
+                    ) : (
+                      <p className="font-medium text-sm flex-1">
+                        {s.name || <span className="text-muted-foreground italic">Ім'я не вказано</span>}
+                      </p>
+                    )}
+                    {editId === s.id && editField === 'name' ? (
+                      <>
+                        <Button size="sm" onClick={() => saveEdit(s.id)} disabled={saving}><Check className="h-3 w-3" /></Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit}><X className="h-3 w-3" /></Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => startEdit(s, 'name')}><Pencil className="h-3 w-3" /></Button>
+                    )}
+                  </div>
+
+                  {/* Email */}
+                  <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+
+                  {/* Variant row */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground">Варіант:</span>
+                    {editId === s.id && editField === 'variant' ? (
+                      <input
+                        className="border rounded px-2 py-1 text-xs w-20"
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && saveEdit(s.id)}
+                        autoFocus
+                        placeholder="напр. 7"
+                      />
+                    ) : (
+                      <span className="text-xs font-medium">
+                        {s.variant || <span className="text-muted-foreground italic">не вказано</span>}
+                      </span>
+                    )}
+                    {editId === s.id && editField === 'variant' ? (
+                      <>
+                        <Button size="sm" onClick={() => saveEdit(s.id)} disabled={saving}><Check className="h-3 w-3" /></Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit}><X className="h-3 w-3" /></Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => startEdit(s, 'variant')}><Pencil className="h-3 w-3" /></Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

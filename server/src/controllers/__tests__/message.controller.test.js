@@ -13,6 +13,7 @@ const res = () => {
 describe('message.controller', () => {
   describe('list', () => {
     it('returns messages for teacher', async () => {
+      Submission.findByPk.mockResolvedValue({ id: 1, studentId: 5, assignment: { course: { teacherId: 1 } } });
       const msgs = [{ id: 1 }];
       Message.findAll.mockResolvedValue(msgs);
       Message.update = jest.fn().mockResolvedValue([1]);
@@ -44,8 +45,7 @@ describe('message.controller', () => {
     });
 
     it('calls next on error', async () => {
-      Message.findAll.mockRejectedValue(new Error('db'));
-      Message.update = jest.fn().mockResolvedValue([0]);
+      Submission.findByPk.mockRejectedValue(new Error('db'));
       const next = jest.fn();
       await ctrl.list({ params: { submissionId: '1' }, user: { role: 'teacher', id: 1 } }, res(), next);
       expect(next).toHaveBeenCalled();

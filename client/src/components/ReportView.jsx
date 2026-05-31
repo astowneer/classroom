@@ -177,15 +177,34 @@ export default function ReportView({ report, submission, student, assignment }) 
       <div ref={ref} className="bg-white p-6 rounded-lg border text-sm font-sans">
         {/* Header */}
         <h1 className="text-xl font-bold text-center mb-4">Звіт перевірки роботи</h1>
-        <div className="grid grid-cols-2 gap-2 mb-6 text-sm border-b pb-4">
-          <div><span className="text-gray-500">Студент:</span> {student?.name || student?.email}</div>
-          <div><span className="text-gray-500">Завдання:</span> {assignment?.title}</div>
-          <div><span className="text-gray-500">Дата здачі:</span> {submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString('uk-UA') : '—'}</div>
-          <div><span className="text-gray-500">Статус:</span> {submission?.status}</div>
-          {report.extractedFields && Object.entries(report.extractedFields).map(([k, v]) => v && (
-            <div key={k}><span className="text-gray-500">{k}:</span> <b>{v}</b></div>
-          ))}
-        </div>
+        {(() => {
+          const extractedVariant = report.extractedFields
+            ? Object.entries(report.extractedFields).find(([k]) => /варіант/i.test(k))?.[1]
+            : null;
+          const studentVariant = student?.variant;
+          const mismatch = extractedVariant && studentVariant &&
+            String(extractedVariant).trim() !== String(studentVariant).trim();
+          return (
+            <div className="grid grid-cols-2 gap-2 mb-6 text-sm border-b pb-4">
+              <div><span className="text-gray-500">Студент:</span> {student?.name || student?.email}</div>
+              <div><span className="text-gray-500">Завдання:</span> {assignment?.title}</div>
+              <div><span className="text-gray-500">Дата здачі:</span> {submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString('uk-UA') : '—'}</div>
+              <div><span className="text-gray-500">Статус:</span> {submission?.status}</div>
+              {studentVariant && (
+                <div className={`col-span-2${mismatch ? ' bg-red-50 border border-red-300 rounded px-2 py-1' : ''}`}>
+                  <span className="text-gray-500">Варіант студента:</span>{' '}
+                  <b className={mismatch ? 'text-red-600' : ''}>{studentVariant}</b>
+                  {mismatch && (
+                    <span className="text-red-600 ml-2 text-xs">⚠ не збігається з текстом роботи ({extractedVariant})</span>
+                  )}
+                </div>
+              )}
+              {report.extractedFields && Object.entries(report.extractedFields).map(([k, v]) => v && (
+                <div key={k}><span className="text-gray-500">{k}:</span> <b>{v}</b></div>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Grade */}
         {report.grade && (

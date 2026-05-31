@@ -5,10 +5,10 @@ module.exports = (sequelize) => sequelize.define('Submission', {
   assignmentId:       { type: DataTypes.INTEGER },
   studentId:          { type: DataTypes.INTEGER },
   fileUrl:            { type: DataTypes.TEXT },
-  localFilePath:      { type: DataTypes.TEXT },   // uploaded directly by student
+  localFilePath:      { type: DataTypes.TEXT },  
   extractedText:      { type: DataTypes.TEXT },
-  originalText:       { type: DataTypes.TEXT },  // preserved original, never overwritten
-  resubmitText:       { type: DataTypes.TEXT },   // text from resubmitted file (keeps original intact)
+  originalText:       { type: DataTypes.TEXT },
+  resubmitText:       { type: DataTypes.TEXT },  
   submittedAt:        { type: DataTypes.DATE },
   status: {
     type: DataTypes.ENUM(
@@ -18,5 +18,5 @@ module.exports = (sequelize) => sequelize.define('Submission', {
     defaultValue: 'pending',
   },
   structureResult:    { type: DataTypes.JSON },
-  teacherComment:     { type: DataTypes.TEXT },   // teacher accept/reject comment
+  teacherComment:     { type: DataTypes.TEXT },  
 });

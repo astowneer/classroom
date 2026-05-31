@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => sequelize.define('Resubmission', {
-  submissionId:    { type: DataTypes.INTEGER, allowNull: false }, // original submission
+  submissionId:    { type: DataTypes.INTEGER, allowNull: false }, 
   studentId:       { type: DataTypes.INTEGER, allowNull: false },
   localFilePath:   { type: DataTypes.TEXT },
   extractedText:   { type: DataTypes.TEXT },
@@ -12,6 +12,6 @@ module.exports = (sequelize) => sequelize.define('Resubmission', {
   },
   teacherComment:  { type: DataTypes.TEXT },
   plagiarismScore: { type: DataTypes.FLOAT },
-  reportDetails:   { type: DataTypes.JSON }, // { structureResult, plagiarismMatches, ... }
+  reportDetails:   { type: DataTypes.JSON }, 
   grade:           { type: DataTypes.JSON },
 });

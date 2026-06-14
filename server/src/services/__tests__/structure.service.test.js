@@ -11,6 +11,7 @@ describe('structure.service check()', () => {
       orderViolations: [],
       emptySections: [],
       forbiddenFound: [],
+      duplicates: [],
     });
   });
 

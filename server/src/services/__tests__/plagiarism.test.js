@@ -199,8 +199,5 @@ describe('compareTexts', () => {
     // Should find multiple matches
     expect(r.matchCount).toBeGreaterThan(3);
     expect(r.similarity).toBeGreaterThan(0.2);
-
-    console.log(`  → знайдено ${r.matchCount} збігів, similarity: ${r.similarity}`);
-    r.matches.forEach((m, i) => console.log(`    [${i+1}] "${m.textA.slice(0, 60)}..."`));
   });
 });

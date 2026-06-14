@@ -44,7 +44,11 @@ function countWords(text) {
  */
 exports.check = (text, sections) => {
   if (!sections || sections.length === 0) {
-    return { passed: true, score: 100, missing: [], found: [], orderViolations: [], emptySections: [], forbiddenFound: [] };
+    return { passed: true, score: 100, missing: [], found: [], orderViolations: [], emptySections: [], forbiddenFound: [], duplicates: [] };
+  }
+
+  if (!text) {
+    return { passed: false, score: 0, missing: sections.filter(s => isRequired(s) && !isForbidden(s)).map(getDisplayName), found: [], orderViolations: [], emptySections: [], forbiddenFound: [], duplicates: [] };
   }
 
   const lines = text.split('\n').map(l => l.trim());

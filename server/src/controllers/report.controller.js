@@ -15,21 +15,14 @@ exports.get = async (req, res, next) => {
     }
     const report = await Report.findOne({
       where: { submissionId: req.params.submissionId },
-      include: [
-        {
-          model: Submission,
-          as: "submission",
-          include: [
-            { model: User, as: "student", attributes: ["id", "name", "email"] },
-            {
-              model: Assignment,
-              as: "assignment",
-              attributes: ["id", "title", "stopPhrases"],
-            },
-          ],
-          attributes: { exclude: [] }, // include all fields including originalText
-        },
-      ],
+      include: [{
+        model: Submission, as: 'submission',
+        include: [
+          { model: User, as: 'student', attributes: ['id', 'name', 'email', 'variant'] },
+          { model: Assignment, as: 'assignment', attributes: ['id', 'title', 'stopPhrases'] },
+        ],
+        attributes: { exclude: [] }, // include all fields including originalText
+      }],
     });
     if (!report) return res.status(404).json({ error: "Not found" });
 

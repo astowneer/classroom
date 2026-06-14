@@ -160,8 +160,6 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
           <option value="">Всі статуси</option>
           <option value="checked">Перевірено</option>
           <option value="pending">Очікує</option>
-          <option value="failed">Помилка</option>
-          <option value="too_large">Файл завеликий</option>
         </select>
         <select className="border rounded px-2 py-1 text-sm" value={filter.plagiarism} onChange={e => setF('plagiarism', e.target.value)}>
           <option value="">Всі запозичення</option>
@@ -195,7 +193,6 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
               { label: 'Структура', key: null },
               { label: 'Оцінка', key: 'grade' },
               { label: 'Здано', key: 'date' },
-              { label: 'Повід.', key: null },
               { label: 'Дії', key: null },
             ].map(({ label, key }) => (
               <th key={label} className={`px-4 py-3 text-left font-medium ${key ? 'cursor-pointer select-none hover:bg-muted' : ''}`}
@@ -231,11 +228,6 @@ function ResultsTable({ results, navigate, downloadOriginal, selected, setSelect
               </td>
               <td className="px-4 py-3 text-muted-foreground text-xs">
                 {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('uk-UA') : '—'}
-              </td>
-              <td className="px-4 py-3">
-                {r.unreadMessages > 0
-                  ? <span className="inline-flex items-center justify-center bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5">{r.unreadMessages}</span>
-                  : <span className="text-muted-foreground text-xs">—</span>}
               </td>
               <td className="px-4 py-3">
                 <div className="flex gap-1">

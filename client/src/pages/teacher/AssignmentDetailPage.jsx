@@ -256,6 +256,7 @@ export default function AssignmentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [ignoreLatin, setIgnoreLatin] = useState(false);
   const [showStructure, setShowStructure] = useState(false);
   const [showGrading, setShowGrading] = useState(false);
   const [showExtract, setShowExtract] = useState(false);
@@ -276,6 +277,7 @@ export default function AssignmentDetailPage() {
       api.get(`/reports/assignment/${assignmentId}`),
     ]);
     setAssignment(aRes.data);
+    setIgnoreLatin(!!aRes.data.ignoreLatin);
     setResults(rRes.data);
     setLoading(false);
   };
@@ -284,6 +286,11 @@ export default function AssignmentDetailPage() {
 
   const sync = async () => { setSyncing(true); await api.post(`/submissions/sync/${assignmentId}`); await load(); setSyncing(false); };
   const [checkError, setCheckError] = useState(null);
+
+  const saveIgnoreLatin = async (value) => {
+    setIgnoreLatin(value);
+    await api.put(`/assignments/${assignmentId}/settings`, { ignoreLatin: value });
+  };
 
   const runCheck = async () => {
     setChecking(true); setCheckError(null);
@@ -340,6 +347,18 @@ export default function AssignmentDetailPage() {
         }}>
           <Download className="h-4 w-4 mr-2" />Excel
         </Button>
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-1" title="Ігнорувати латиницю при перевірці запозичень">
+          <span className="text-muted-foreground">Ігнорувати латиницю</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={ignoreLatin}
+            onClick={() => saveIgnoreLatin(!ignoreLatin)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${ignoreLatin ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${ignoreLatin ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </label>
         <Button size="sm" variant="outline" onClick={() => setShowStructure(s => !s)}>
           {showStructure ? 'Сховати структуру' : 'Налаштувати структуру'}
         </Button>

@@ -11,4 +11,5 @@ module.exports = (sequelize) => sequelize.define('Assignment', {
   gradingConfig:         { type: DataTypes.JSON, defaultValue: null },
   stopPhrases:           { type: DataTypes.JSON, defaultValue: [] },
   extractFields:         { type: DataTypes.JSON, defaultValue: [] },
+  ignoreLatin:           { type: DataTypes.BOOLEAN, defaultValue: false },
 });

@@ -1,7 +1,7 @@
 const { PlagiarismResult } = require('../models');
 const {
   normalize, tokenizeWords, buildShingles, jaccard,
-  removeStopPhrases, splitSentences,
+  removeStopPhrases, splitSentences, stripLatin,
 } = require('../utils/text.utils');
 
 const DOC_THRESHOLD = 0.15;
@@ -123,17 +123,18 @@ exports.compareTexts = (textA, textB) => {
   return { matches, similarity: +Math.min(similarity, 1).toFixed(3), matchCount: matches.length };
 };
 
-exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = [], saveToDb = true) => {
+exports.compare = async (targetSubmission, earlierSubmissions, stopPhrases = [], saveToDb = true, ignoreLatin = false) => {
   if (!targetSubmission.extractedText) return [];
   const originalTarget = normalize(targetSubmission.extractedText);
-  const targetText = removeStopPhrases(originalTarget, stopPhrases);
+  const prep = (t) => ignoreLatin ? stripLatin(removeStopPhrases(t, stopPhrases)) : removeStopPhrases(t, stopPhrases);
+  const targetText = prep(originalTarget);
   const targetWords = tokenizeWords(targetText);
   const targetShingles = buildShingles(targetWords);
   const results = [];
 
   for (const source of earlierSubmissions) {
     const originalSource = normalize(source.extractedText);
-    const sourceText = removeStopPhrases(originalSource, stopPhrases);
+    const sourceText = prep(originalSource);
     const sourceWords = tokenizeWords(sourceText);
 
     const docSim = jaccard(targetShingles, buildShingles(sourceWords));

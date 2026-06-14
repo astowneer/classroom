@@ -37,6 +37,10 @@ function splitSentences(text) {
     .filter(s => s.length >= MIN_CHARS && tokenizeWords(s).length >= MIN_WORDS);
 }
 
+function stripLatin(text) {
+  return text.replace(/[a-zA-Z]+/g, ' ').replace(/[ \t]+/g, ' ');
+}
+
 function removeStopPhrases(text, stopPhrases) {
   if (!stopPhrases?.length) return text;
   let result = text;
@@ -70,6 +74,7 @@ module.exports = {
   tokenizeWords,
   splitSentences,
   removeStopPhrases,
+  stripLatin,
   buildShingles,
   jaccard,
 };

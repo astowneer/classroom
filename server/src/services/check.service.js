@@ -76,7 +76,7 @@ exports.runAll = async (assignmentId, teacher) => {
       ...submission.toJSON(),
       extractedText: submission.originalText || submission.extractedText,
     };
-    const plagiarismMatches = await plagiarismService.compare(submissionForPlagiarism, earlier, assignment.stopPhrases || []);
+    const plagiarismMatches = await plagiarismService.compare(submissionForPlagiarism, earlier, assignment.stopPhrases || [], true, assignment.ignoreLatin || false);
 
     // 4. Grammar check (non-fatal — skip if LanguageTool unavailable)
     let grammarResult = null;
@@ -158,7 +158,7 @@ exports.runSelected = async (assignmentId, submissionIds, teacher) => {
     await submission.update({ structureResult });
 
     const earlier = allSubmissions.filter(s => s.submittedAt < submission.submittedAt && s.extractedText);
-    const plagiarismMatches = await plagiarismService.compare(submission, earlier, assignment.stopPhrases || []);
+    const plagiarismMatches = await plagiarismService.compare(submission, earlier, assignment.stopPhrases || [], true, assignment.ignoreLatin || false);
 
     let grammarResult = null;
     try { grammarResult = await grammarService.check(submission.extractedText); } catch {}
